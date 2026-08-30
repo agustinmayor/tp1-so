@@ -26,7 +26,7 @@ typedef struct {
     Player players[MAX_PLAYERS]; // lista de players
     bool isGameOver;
     bool isGamePaused;
-    signed char board[]; // puntero al comienzo del tablero
+    signed char board[]; // puntero al comienzo del tablero      // scores de 1-9, 0..-8=ocupado por jugador -v   
 } GameState;
 
 #endif
