@@ -23,8 +23,8 @@ void semInit(GameSync * gs, int cantPlayers) {
 
     // inicializo semaforos con cada player para que puedan enviar un movimiento
     for(int i = 0; i < cantPlayers; i++) {
-        if(sem_init(&gs->playerAllowed[i], 1, 1) == -1) {
-            perror("sem_init playerAllowed");
+        if(sem_init(&gs->playerTurn[i], 1, 1) == -1) {
+            perror("sem_init playerTurn");
             exit(EXIT_FAILURE);
         }
     }
@@ -42,7 +42,7 @@ void semDestroy(GameSync * gs, int cantPlayers) {
     sem_destroy(&gs->readersMutex);
 
     for(int i = 0; i < cantPlayers; i++) {
-        sem_destroy(&gs->playerAllowed[i]);
+        sem_destroy(&gs->playerTurn[i]);
     }
 }
 
