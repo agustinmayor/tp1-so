@@ -16,4 +16,19 @@ typedef struct {
 } GameSync;
 
 
+// inicializa todos los semaforos
+void semInit(GameSync * gs, int cantPlayers);
+
+// libera los recursos de los semaforos
+// llamada por el master cuando se finaliza el juego
+void semDestroy(GameSync * gs, int cantPlayers);
+
+// funciones para el master cuando va a cambiar el GameState
+void writerLock(GameSync * gs);
+void writerUnlock(GameSync * gs);
+
+// funciones para los jugadores cuando van a leer el GameState
+void readerLock(GameSync * gs);
+void readerUnlock(GameSync * gs);
+
 #endif
