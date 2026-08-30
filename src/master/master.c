@@ -15,19 +15,43 @@ int main(int argc, char *argv[]) {
     MasterArgs args;
     parseArgs(argc, argv, &args);
 
-    // inicializamos las dos memorias compartidas y los semaforos
     size_t gameStateSize = sizeof(GameState) + (args.width * args.height * sizeof(signed char));
+    size_t gameSyncSize = sizeof(GameSync);
+
+    // --- Creamos la memoria compartida de game_state.h ---
+
+    int shmFdGameState;
+    GameState * gs = createSharedMem(SHM_GAME_STATE_NAME, gameStateSize, &shmFdGameState);
     
-    initSharedMemory(&args);
-    initSemaphores(&args);
+    // Inicializamos el estado del juego en cero
+    memset(gs, 0, gameStateSize);
+
+    // guardamos las dim del tablero, la cantidad de jugadores t las flags
+    gs->boardWidth = args.width;
+    gs->boardHeight = args.height;
+    gs->cantPlayers = args.cantPlayers;
+    gs->isGameOver = false;
+    gs->isGamePaused = false;
 
 
-    // inicializamos los handlers de señales
+    // --- Creamos la memoria compartida de game_sync.h ---
+
+    int shmFdGameSync;
+    GameSync * sync = createSharedMem(SHM_GAME_SYNC_NAME, gameSyncSize, &shmFdGameSync);
+    memset(sync, 0, gameSyncSize);
+
+    // Inicializamos tablero, ubicamos jugadores, inicializamos semaforos y señales
+    initBoard(gs, args.seed);
+    locatePlayers(gs);
+    semInit(sync, args.cantPlayers);
     initSignalHandlers();
 
     
     
     // falta la logica del master para manejar el juego 
+    //  * spawn de players
+    //  * spawn de vista
+    //  * loop principal del juego
 
     // falta la implementacion de terminar el juego y limpiar recursos
     // ...
@@ -82,9 +106,7 @@ static void parseArgs(int argc, char *argv[], MasterArgs *args) {
     }
 }
 
-static void initSharedMemory(MasterArgs *args) {
-    // Implementación pendiente para inicializar la memoria compartida
-}
+
 
 static void initSemaphores(MasterArgs *args) {
     // Implementación pendiente para inicializar los semáforos

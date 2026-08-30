@@ -9,6 +9,9 @@
 #define DEFAULT_DELAY 200
 #define DEFAULT_TIMEOUT 10
 
+#define SHM_GAME_STATE_NAME "/game_state"
+#define SHM_GAME_SYNC_NAME "/game_sync"
+
 // struct para los argumentos pasados al master
 typedef struct {
     unsigned short width, height;
