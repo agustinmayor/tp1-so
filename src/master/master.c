@@ -14,7 +14,9 @@ int main(int argc, char *argv[]) {
     MasterArgs args;
     parseArgs(argc, argv, &args);
 
-    // falta inicializar las memorias compartidas y los semaforos
+    // falta inicializar las dos memorias compartidas y los semaforos
+
+    // falta el manejo de las señales de fin y de pausa
 
     // falta la logica del master para manejar el juego 
 
