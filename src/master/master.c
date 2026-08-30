@@ -8,6 +8,7 @@
 #include "game_sync.h"
 #include "game_state.h"
 #include "master.h"
+#include "signals.h"
 
 int main(int argc, char *argv[]) {
 
@@ -16,7 +17,8 @@ int main(int argc, char *argv[]) {
 
     // falta inicializar las dos memorias compartidas y los semaforos
 
-    // falta el manejo de las señales de fin y de pausa
+    // inicializamos los handlers de señales
+    initSignalHandlers();
 
     // falta la logica del master para manejar el juego 
 
