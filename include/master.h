@@ -4,6 +4,10 @@
 #include <stdbool.h>
 
 #define MAX_PLAYERS 9
+#define DEFAULT_WIDTH 10
+#define DEFAULT_HEIGHT 10
+#define DEFAULT_DELAY 200
+#define DEFAULT_TIMEOUT 10
 
 // struct para los argumentos pasados al master
 typedef struct {
