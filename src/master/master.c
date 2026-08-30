@@ -15,11 +15,18 @@ int main(int argc, char *argv[]) {
     MasterArgs args;
     parseArgs(argc, argv, &args);
 
-    // falta inicializar las dos memorias compartidas y los semaforos
+    // inicializamos las dos memorias compartidas y los semaforos
+    size_t gameStateSize = sizeof(GameState) + (args.width * args.height * sizeof(signed char));
+    
+    initSharedMemory(&args);
+    initSemaphores(&args);
+
 
     // inicializamos los handlers de señales
     initSignalHandlers();
 
+    
+    
     // falta la logica del master para manejar el juego 
 
     // falta la implementacion de terminar el juego y limpiar recursos
@@ -28,7 +35,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void parseArgs(int argc, char *argv[], MasterArgs *args) {
+static void parseArgs(int argc, char *argv[], MasterArgs *args) {
     args->width = DEFAULT_WIDTH;
     args->height = DEFAULT_HEIGHT;
     args->delay = DEFAULT_DELAY;
@@ -73,4 +80,12 @@ void parseArgs(int argc, char *argv[], MasterArgs *args) {
         fprintf(stderr, "Cantidad de jugadores invalida. Debe ser entre 1 y 9\n");
         exit(EXIT_FAILURE);
     }
+}
+
+static void initSharedMemory(MasterArgs *args) {
+    // Implementación pendiente para inicializar la memoria compartida
+}
+
+static void initSemaphores(MasterArgs *args) {
+    // Implementación pendiente para inicializar los semáforos
 }
