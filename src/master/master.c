@@ -49,9 +49,20 @@ int main(int argc, char *argv[]) {
     
     
     // falta la logica del master para manejar el juego 
-    //  * spawn de players
     //  * spawn de vista
     //  * loop principal del juego
+
+    // spawn de los jugadores 
+    
+    pid_t playersPids[MAX_PLAYERS];
+    int playersFds[MAX_PLAYERS]; // extremos de lectura del pipe para cada player
+
+    for(int i=0; i < args.cantPlayers; i++) {
+        playersPids[i] = spawnPlayer(args.playerPaths[i], args.width, args.height, i, &playersFds[i]);
+        gs->players[i].pid = playersPids[i];
+
+        strncpy(gs->players[i].playerName, args.playerPaths[i], 15);
+    }
 
     // falta la implementacion de terminar el juego y limpiar recursos
     // ...
@@ -104,10 +115,4 @@ static void parseArgs(int argc, char *argv[], MasterArgs *args) {
         fprintf(stderr, "Cantidad de jugadores invalida. Debe ser entre 1 y 9\n");
         exit(EXIT_FAILURE);
     }
-}
-
-
-
-static void initSemaphores(MasterArgs *args) {
-    // Implementación pendiente para inicializar los semáforos
 }

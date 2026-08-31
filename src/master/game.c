@@ -1,5 +1,8 @@
 // Archivo donde estará la logica del master para manejar el juego
 #include "game.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 
 // Inicializa el tablero randomizando los valores de cada celda
 void initBoard(GameState * gs, unsigned int seed){
@@ -70,5 +73,57 @@ void locatePlayers(GameState * gs) {
         // Marco casilla respectiva del board como ocupada por el jugador
         gs->board[playerX + playerY * width] = (signed char)(-i);
     }
+
+}
+
+// Metodo para crear un proceso jugador y establecer la comunicacion con un pipe
+// 
+// pipe --> fork --> dup2 --> exec
+//
+// Retorna el pid del proceso jugador creado
+
+pid_t spawnPlayer(const char * playerPath, unsigned short boardWidth, unsigned short boardHeight, int playerIndex, int * pipeFd) {
+    
+    int fd[2];
+    // fd[0] -> extremo de lectura del pipe
+    // fd[1] -> extremo de escritura del pipe
+    
+    // creo el pipe
+    if(pipe(fd) == -1) {
+        perror("pipe: Error al crear el pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    // forkeo
+    pid_t pid = fork();
+    if(pid == -1) {
+        perror("fork: Error al crear el proceso jugador");
+        exit(EXIT_FAILURE);
+    }
+
+    if(pid==0) {
+        close(fd[0]);
+        dup2(fd[1], STDOUT_FILENO); // redirijo stdout al pipe
+        close(fd[1]); // cierro el extremo de escritura del pipe en el hijo
+
+        char boardWidthStr[16], boardHeightStr[16], playerIndexStr[16];
+
+        // para hacer execl necesito los params como strings 
+        snprintf(boardWidthStr, sizeof(boardWidthStr), "%hu", boardWidth);
+        snprintf(boardHeightStr, sizeof(boardHeightStr), "%hu", boardHeight);
+        snprintf(playerIndexStr, sizeof(playerIndexStr), "%d", playerIndex);
+
+        execl(playerPath, playerPath, boardWidthStr, boardHeightStr, playerIndexStr, (char *)NULL);
+
+        // si execl vuelve, es porque hubo un error
+        perror("execl: Error al ejecutar el proceso jugador");
+        exit(EXIT_FAILURE);
+
+    }
+
+    close(fd[1]); // cierro el extremo de escritura del pipe en el papa
+    *pipeFd = fd[0];
+    
+    return pid;
 
 }
