@@ -4,7 +4,7 @@ LDFLAGS = -lrt -pthread
 
 BIN_DIR = bin
 
-MASTER_OBJ = src/master/master.o src/master/game.o src/semaphores.o src/signals.o src/sharedMem.o
+MASTER_OBJ = src/master/master.o src/master/gameInit.o src/semaphores.o src/signals.o src/sharedMem.o
 VIEW_OBJ   = src/view/view.o
 PLAYER_OBJ = src/player/player.o src/semaphores.o src/sharedMem.o
 

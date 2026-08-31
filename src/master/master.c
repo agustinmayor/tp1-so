@@ -9,6 +9,7 @@
 #include "game_state.h"
 #include "master.h"
 #include "signals.h"
+#include "gameInit.h"
 
 int main(int argc, char *argv[]) {
 

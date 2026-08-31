@@ -1,5 +1,5 @@
 // Archivo donde estará la logica del master para manejar el juego
-#include "game.h"
+#include "gameInit.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
