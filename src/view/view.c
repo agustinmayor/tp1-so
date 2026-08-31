@@ -213,7 +213,6 @@ static void onInterrupt(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-
     size_t width  = strtoul(argv[1], NULL, 10);     size_t height = strtoul(argv[2], NULL, 10);
 
     size_t stateSize = sizeof(GameState) + width * height;
