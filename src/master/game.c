@@ -78,6 +78,8 @@ void locatePlayers(GameState * gs) {
 
 // Metodo para crear un proceso jugador y establecer la comunicacion con un pipe
 // 
+// Un proceso jugador recibe como argumentos el ancho y el alto del tablero, y su indice de jugador (0..8).
+
 // pipe --> fork --> dup2 --> exec
 //
 // Retorna el pid del proceso jugador creado
@@ -126,4 +128,33 @@ pid_t spawnPlayer(const char * playerPath, unsigned short boardWidth, unsigned s
     
     return pid;
 
+}
+
+// Metodo para crear un proceso vista
+
+// El proceso vista recibe como argumentos el ancho y el alto del tablero.
+pid_t spawnView(const char *viewPath, unsigned short boardWidth, unsigned short boardHeight) {
+
+    pid_t pid = fork();
+
+    if(pid == -1) {
+        perror("fork: Error al crear el proceso vista");
+        exit(EXIT_FAILURE);
+    }
+
+    if(pid == 0) {
+        char boardWidthStr[16], boardHeightStr[16];
+
+        // para hacer execl necesito los params como strings 
+        snprintf(boardWidthStr, sizeof(boardWidthStr), "%hu", boardWidth);
+        snprintf(boardHeightStr, sizeof(boardHeightStr), "%hu", boardHeight);
+
+        execl(viewPath, viewPath, boardWidthStr, boardHeightStr, (char *)NULL);
+
+        // si execl vuelve, es porque hubo un error
+        perror("execl: Error al ejecutar el proceso vista");
+        exit(EXIT_FAILURE);
+    }
+
+    return pid;
 }

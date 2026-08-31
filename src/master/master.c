@@ -46,13 +46,10 @@ int main(int argc, char *argv[]) {
     semInit(sync, args.cantPlayers);
     initSignalHandlers();
 
-    
-    
-    // falta la logica del master para manejar el juego 
-    //  * spawn de vista
-    //  * loop principal del juego
 
+    // -----
     // spawn de los jugadores 
+    // -----
     
     pid_t playersPids[MAX_PLAYERS];
     int playersFds[MAX_PLAYERS]; // extremos de lectura del pipe para cada player
@@ -64,7 +61,18 @@ int main(int argc, char *argv[]) {
         strncpy(gs->players[i].playerName, args.playerPaths[i], 15);
     }
 
-    // falta la implementacion de terminar el juego y limpiar recursos
+    // -----
+    // spawn de la vista (si se especifico un path)
+    // -----
+
+    pid_t viewPid = -1;
+
+    // si no se adjunto path de vista usando -v, no se hace spawn de vista
+    if(args.hasView) {
+        viewPid = spawnView(args.viewPath, args.width, args.height);
+    }
+
+    // falta la implementacion de iniciar, terminar el juego y limpiar recursos
     // ...
 
     return 0;

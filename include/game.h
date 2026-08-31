@@ -11,5 +11,6 @@ void initBoard(GameState * gs, unsigned int seed);
 void locatePlayers(GameState * gs);
 
 pid_t spawnPlayer(const char * playerPath, unsigned short boardWidth, unsigned short boardHeight, int playerIndex, int * pipeFd);
+pid_t spawnView(const char * viewPath, unsigned short boardWidth, unsigned short boardHeight);
 
 #endif
