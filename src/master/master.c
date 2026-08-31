@@ -9,7 +9,9 @@
 #include "game_state.h"
 #include "master.h"
 #include "signals.h"
+#include "sharedMem.h"
 #include "gameInit.h"
+#include "gameLoop.h"
 
 int main(int argc, char *argv[]) {
 
@@ -73,8 +75,24 @@ int main(int argc, char *argv[]) {
         viewPid = spawnView(args.viewPath, args.width, args.height);
     }
 
-    // falta la implementacion de iniciar, terminar el juego y limpiar recursos
-    // ...
+    // -----
+    // corremos el loop principal del juego
+    // -----
+    int lastPlayerPlayed = -1;
+    runGame(gs, sync, &args, playersFds, &lastPlayerPlayed);
+
+    // -----
+    // terminamos el juego y limpiamos sync
+    // -----
+    gameOver(gs, sync, &args, playersPids, playersFds, viewPid);
+
+    // -----
+    // limpiamos la memoria compartida y de los recursos IPC
+    // -----
+
+    semDestroy(sync, args.cantPlayers);
+    removeSharedMem(SHM_GAME_SYNC_NAME, shmFdGameSync, sync, gameSyncSize);
+    removeSharedMem(SHM_GAME_STATE_NAME, shmFdGameState, gs, gameStateSize);
 
     return 0;
 }
