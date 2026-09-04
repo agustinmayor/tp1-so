@@ -69,11 +69,10 @@ void parseArgs(int argc, char * argv[], MasterArgs * args) {
         }
     }
 
-    if(args->width < DEFAULT_WIDTH) {
-        args->width = DEFAULT_WIDTH;
-    }
-    if(args->height < DEFAULT_HEIGHT) {
-        args->height = DEFAULT_HEIGHT;
+    if(args->width < DEFAULT_WIDTH || args->height < DEFAULT_HEIGHT) {
+        fprintf(stderr, "Las dimensiones minimas del tablero son %dx%d, se recibio %dx%d\n",
+            DEFAULT_WIDTH, DEFAULT_HEIGHT, args->width, args->height);
+        exit(EXIT_FAILURE);
     }
     if(args->cantPlayers <= 0) {
         fprintf(stderr, "Hay que indicar al menos un jugador con -p\n");

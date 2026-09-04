@@ -32,6 +32,15 @@ static void sleepMilliseconds(unsigned int milliseconds) {
     nanosleep(&remaining, NULL);
 }
 
+// Los handlers solo corren con las señales desbloqueadas. Como el master las mantiene
+// bloqueadas mientras trabaja, y el pselect no llega a dormirse cuando los jugadores
+// siempre tienen un movimiento listo, abrimos una ventana en cada vuelta para que las
+// señales que quedaron pendientes se entreguen ahora.
+static void deliverPendingSignals(const sigset_t * runningMask, const sigset_t * handledSignals) {
+    sigprocmask(SIG_SETMASK, runningMask, NULL);
+    sigprocmask(SIG_BLOCK, handledSignals, NULL);
+}
+
 static void notifyView(GameSync * sync, const MasterArgs * args) {
     if(!args->hasView) {
         return;
@@ -139,7 +148,13 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
     bool gameFinished = false;
 
-    while(!gameFinished && !sigtermReceived) {
+    FOR_EVER {
+
+        deliverPendingSignals(&runningMask, &handledSignals);
+
+        if(gameFinished || sigtermReceived) {
+            break;
+        }
 
         if(sigusr1Received) {
             sigusr1Received = 0;
