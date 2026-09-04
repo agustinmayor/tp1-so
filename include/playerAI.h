@@ -1,25 +1,29 @@
 #ifndef PLAYER_AI_H
 #define PLAYER_AI_H
 
-#include <structures.h>
-#include <unistd.h>
-#include <semaphores.h>
-#include <shmState.h>
-#include <shmSync.h>
-#include <limits.h>
-#include <errno.h>
-#include <stdio.h>
+#include "board.h"
+#include "game_state.h"
 
-/* Busca el indice del jugador actual comparando PIDs. */
-int findMyIndex(const GameState *state);
+// Copia local del estado. Se toma dentro del lock de lectura para que la seccion
+// critica sea lo mas corta posible y decidir el movimiento no frene al master.
+typedef struct {
+    unsigned short boardWidth;
+    unsigned short boardHeight;
+    unsigned char cantPlayers;
+    unsigned short playersX[MAX_PLAYERS];
+    unsigned short playersY[MAX_PLAYERS];
+    bool isGameOver;
+    bool amIBlocked;
+    signed char * board;
+} GameSnapshot;
 
-/* Calcula el mejor movimiento usando estrategia greedy (mayor valor adyacente). */
-unsigned char findBestMove(const GameState *state, int myIndex);
+bool createSnapshot(GameSnapshot * snapshot, unsigned short boardWidth, unsigned short boardHeight);
 
-/* Chequea la validez de los argumentos width y height. */
-int checkArguments(char * argv[], size_t * width, size_t *height);
+void destroySnapshot(GameSnapshot * snapshot);
 
-/* Ejecuta el bucle principal del jugador. */
-void runLoop(const GameState *state, SyncData *sync, int myIndex);
+void takeSnapshot(GameSnapshot * snapshot, const GameState * gs, int myIndex);
+
+// Devuelve la direccion elegida, en el rango [0, 7]
+unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex);
 
 #endif

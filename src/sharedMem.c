@@ -54,8 +54,8 @@ void * createSharedMem(const char * name, size_t size, int * shmFd) {
 // usado por vista y jugadores
 
 
-void * connectSharedMem(const char * name, size_t size, int readAndWrite) {
-    int flags = readAndWrite ? O_RDWR : O_RDONLY;
+void * connectSharedMem(const char * name, size_t size, int accessMode) {
+    int flags = (accessMode == SHM_READ_WRITE) ? O_RDWR : O_RDONLY;
     int fd = shm_open(name, flags, ALL_PERMS);
 
     if(fd == -1) { // si shm_open falla
@@ -63,7 +63,7 @@ void * connectSharedMem(const char * name, size_t size, int readAndWrite) {
         exit(EXIT_FAILURE);
     }
 
-    int prot = readAndWrite ? (PROT_READ | PROT_WRITE) : PROT_READ;
+    int prot = (accessMode == SHM_READ_WRITE) ? (PROT_READ | PROT_WRITE) : PROT_READ;
 
     void * memAddress = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
 

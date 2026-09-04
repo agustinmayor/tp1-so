@@ -9,11 +9,13 @@
 
 #define MAX_PLAYERS 9
 
+#define SHM_GAME_STATE_NAME "/game_state"
+
 typedef struct {
     char playerName[16];
     unsigned int playerScore;
-    unsigned int validMoves;
     unsigned int invalidMoves;
+    unsigned int validMoves;
     unsigned short playerX, playerY; // coords del jugador en el tablero
     pid_t pid;
     bool isBlocked;
@@ -26,7 +28,7 @@ typedef struct {
     Player players[MAX_PLAYERS]; // lista de players
     bool isGameOver;
     bool isGamePaused;
-    signed char board[]; // puntero al comienzo del tablero      // scores de 1-9, 0..-8=ocupado por jugador -v   
+    signed char board[]; // celda libre = recompensa 1..9, celda capturada = -id del dueño
 } GameState;
 
 #endif

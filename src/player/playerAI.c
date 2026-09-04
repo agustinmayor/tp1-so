@@ -1,43 +1,61 @@
-#include <playerAI.h>
+#include "playerAI.h"
 
-/* Direcciones: 
-** 0 = Norte
-** 1 = Noreste
-** 2 = Este
-** 3 = Sureste
-** 4 = Sur
-** 5 = Suroeste
-** 6 = Oeste
-** 7 = Noroeste 
-*/
+#include <stdlib.h>
+#include <string.h>
 
-static const int DY[] = {-1,    -1,    0,     1,    1,      1,      0,  -1};
-static const int DX[] = {0,     1,     1,     1,    0,     -1,     -1,  -1};
+bool createSnapshot(GameSnapshot * snapshot, unsigned short boardWidth, unsigned short boardHeight) {
+    snapshot->boardWidth = boardWidth;
+    snapshot->boardHeight = boardHeight;
+    snapshot->cantPlayers = 0;
+    snapshot->isGameOver = false;
+    snapshot->amIBlocked = false;
+    snapshot->board = malloc((size_t)boardWidth * boardHeight * sizeof(signed char));
 
-unsigned char findBestMove(const GameState *state, int myIndex){
+    return snapshot->board != NULL;
+}
 
-    int myX = state->players[myIndex].x;
-    int myY = state->players[myIndex].y;
-    int bestDir = -1;
-    int bestValue = -1;
+void destroySnapshot(GameSnapshot * snapshot) {
+    free(snapshot->board);
+    snapshot->board = NULL;
+}
 
-    /* Recorre todas las direcciones y calcula la mejor posibilidad para moverse. */
-    for(int dir = 0; dir < DIRECTION_COUNT; dir++){
-        int nx = myX + DX[dir];
-        int ny = myY + DY[dir];
+void takeSnapshot(GameSnapshot * snapshot, const GameState * gs, int myIndex) {
+    snapshot->cantPlayers = gs->cantPlayers;
+    snapshot->isGameOver = gs->isGameOver;
+    snapshot->amIBlocked = gs->players[myIndex].isBlocked;
 
-        if((nx < 0) || (nx >= state->width) || (ny < 0) || (ny >= state->height)){
+    for(unsigned char i = 0; i < gs->cantPlayers; i++) {
+        snapshot->playersX[i] = gs->players[i].playerX;
+        snapshot->playersY[i] = gs->players[i].playerY;
+    }
+
+    memcpy(snapshot->board, gs->board, (size_t)snapshot->boardWidth * snapshot->boardHeight);
+}
+
+// Estrategia inicial: la celda adyacente libre con mayor recompensa
+unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex) {
+
+    int myX = snapshot->playersX[myIndex];
+    int myY = snapshot->playersY[myIndex];
+
+    int bestDirection = 0;
+    int bestReward = 0;
+
+    for(int direction = 0; direction < DIRECTION_COUNT; direction++) {
+        int targetX = myX + DIRECTION_DX[direction];
+        int targetY = myY + DIRECTION_DY[direction];
+
+        if(!isFreeCell(snapshot->board, snapshot->boardWidth, snapshot->boardHeight, targetX, targetY)) {
             continue;
         }
 
-        int cell = BOARD_AT(state->board, state->width, ny, nx);    /* Guardo el valor de la celda. */
+        int reward = cellAt(snapshot->board, snapshot->boardWidth, targetX, targetY);
 
-        if((cell > 0) && (cell > bestValue)){
-            /* Actualizo la mejor opción. */
-            bestValue = cell;
-            bestDir = dir;
+        if(reward > bestReward) {
+            bestReward = reward;
+            bestDirection = direction;
         }
     }
 
-    return ((bestDir == -1) ? 0 : (unsigned char)bestDir);     /* Si no hay movimientos válidos, devuelve 0 (Norte). */
-    
+    return (unsigned char)bestDirection;
+}

@@ -15,9 +15,9 @@
 
 #include "game_state.h"
 #include "game_sync.h"
+#include "utils.h"
 
-#define STATE_SHM "/game_state"
-#define SYNC_SHM  "/game_sync"
+#define EXPECTED_ARGC 3
 
 #define TITLE     "CHOMPCHAMPS"
 #define TITLE_W   11
@@ -33,10 +33,6 @@
 static const unsigned char PLAYER_HEAD[MAX_PLAYERS]  = {  33, 208,  41, 137, 226,  51, 196, 129, 245 };
 static const unsigned char PLAYER_TRAIL[MAX_PLAYERS] = {  19, 130,  28,  94, 100,  30,  88,  54, 238 };
 static const unsigned char PLAYER_FG[MAX_PLAYERS]    = { 231,  16,  16,  16,  16,  16, 231, 231,  16 };
-
-/* OBS El campo que se llama validMoves guarda en realidad los INVALIDOS y vic */
-#define MOVES_VALID(p)   ((p)->invalidMoves)
-#define MOVES_INVALID(p) ((p)->validMoves)
 
 /* Buffer de pantalla */
 typedef struct {
@@ -198,7 +194,7 @@ static void renderFrame(FrameBuf *f, const GameState *st) {
         emit(f, "\033[38;5;%u;48;5;%um%2u" RESET, (unsigned)PLAYER_FG[i], (unsigned)PLAYER_HEAD[i], i);
         emit(f, "  %-16.16s  %6u  %7u  %9u   (%3u,%3u)   %s" EOL,
              p->playerName, p->playerScore,
-             MOVES_VALID(p), MOVES_INVALID(p),
+             p->validMoves, p->invalidMoves,
              (unsigned)p->playerX, (unsigned)p->playerY,
              p->isBlocked ? "\033[1;31mBLOQUEADO" : "\033[32mactivo");
     }
@@ -213,12 +209,23 @@ static void onInterrupt(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-    size_t width  = strtoul(argv[1], NULL, 10);     size_t height = strtoul(argv[2], NULL, 10);
+    if (argc != EXPECTED_ARGC) {
+        fprintf(stderr, "Uso: %s <width> <height>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    size_t width  = strtoul(argv[1], NULL, 10);
+    size_t height = strtoul(argv[2], NULL, 10);
+
+    if (width == 0 || height == 0) {
+        fprintf(stderr, "Dimensiones de tablero invalidas\n");
+        return EXIT_FAILURE;
+    }
 
     size_t stateSize = sizeof(GameState) + width * height;
-    GameState *state = mapShm(STATE_SHM, O_RDONLY, PROT_READ, stateSize);
+    GameState *state = mapShm(SHM_GAME_STATE_NAME, O_RDONLY, PROT_READ, stateSize);
 
-    GameSync *sync = mapShm(SYNC_SHM, O_RDWR, PROT_READ | PROT_WRITE, sizeof(GameSync));
+    GameSync *sync = mapShm(SHM_GAME_SYNC_NAME, O_RDWR, PROT_READ | PROT_WRITE, sizeof(GameSync));
 
     FrameBuf frame;
     frame.cap  = (height + 60) * (width * 48 + 512) + 8192;
@@ -239,7 +246,7 @@ int main(int argc, char *argv[]) {
 
     (void)!write(STDOUT_FILENO, "\033[?25l", 6);   /* ocultar cursor */
 
-    while (true) {
+    FOR_EVER {
         /* Master dice que hay cambios */
         if (sem_wait(&sync->viewSignal) == -1) {
             if (errno == EINTR) {

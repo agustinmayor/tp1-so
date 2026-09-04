@@ -1,5 +1,6 @@
 // Archivo donde estará la logica del master para manejar el juego
 #include "gameInit.h"
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -93,6 +94,13 @@ pid_t spawnPlayer(const char * playerPath, unsigned short boardWidth, unsigned s
     // creo el pipe
     if(pipe(fd) == -1) {
         perror("pipe: Error al crear el pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    // el extremo de lectura no se hereda: si cada jugador conservara los pipes de sus
+    // hermanos, el master nunca veria el EOF que marca a un jugador como bloqueado
+    if(fcntl(fd[0], F_SETFD, FD_CLOEXEC) == -1) {
+        perror("fcntl: Error al marcar el pipe como no heredable");
         exit(EXIT_FAILURE);
     }
 

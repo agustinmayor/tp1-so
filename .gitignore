@@ -55,7 +55,5 @@ dkms.conf
 *.dwo
 
 
-bin/
-
 # Binarios de Makefile
 bin/
