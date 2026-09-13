@@ -8,9 +8,40 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #define EXPECTED_ARGC 4
+#define CHECK_MASTER_SECONDS 1
+
+// chequeamos que el master siga vivo para no quedar bloqueados
+// la espera la hacemos x tramos y entre tramo y tranmo chequeamos que el master siga vivo (siga siendo padre)
+static bool waitForMyTurn(sem_t * playerTurn, pid_t masterPid) {
+    while(1) {
+        struct timespec deadline;
+
+        clock_gettime(CLOCK_REALTIME, &deadline);
+
+        deadline.tv_sec += CHECK_MASTER_SECONDS;
+
+        if(sem_timedwait(playerTurn, &deadline) == 0){
+            return true;
+        }
+
+        if(errno == ETIMEDOUT) {
+            if(getppid() != masterPid) {
+                return false;
+            }
+
+            continue;
+        }
+
+        if(errno != EINTR) {
+            return false;
+        }
+
+    }
+}
 
 int main(int argc, char * argv[]) {
 
@@ -45,11 +76,10 @@ int main(int argc, char * argv[]) {
         return EXIT_FAILURE;
     }
 
-    FOR_EVER {
-        if(sem_wait(&sync->playerTurn[myIndex]) == -1) {
-            if(errno == EINTR) {
-                continue;
-            }
+    pid_t masterPid = getppid();
+
+    while(1) {
+        if(!waitForMyTurn(&sync->playerTurn[myIndex], masterPid)) {
             break;
         }
 
