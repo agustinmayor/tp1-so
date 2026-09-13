@@ -13,7 +13,7 @@
 
 void * createSharedMem(const char * name, size_t size, int * shmFd) {
     
-    int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR, ALL_PERMS);
+    int fd = shm_open(name, O_CREAT | O_RDWR, ALL_PERMS);
 
     if(fd == -1) { // si shm_open falla
         perror ("shm_open: Error al crear la memoria compartida");
