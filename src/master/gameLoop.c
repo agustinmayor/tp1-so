@@ -20,8 +20,8 @@
 static long millisecondsSince(const struct timespec * start) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return (now.tv_sec - start->tv_sec) * MILLISECONDS_PER_SECOND
-         + (now.tv_nsec - start->tv_nsec) / NANOSECONDS_PER_MILLISECOND;
+    return ((now.tv_sec - start->tv_sec) * MILLISECONDS_PER_SECOND)
+         + ((now.tv_nsec - start->tv_nsec) / NANOSECONDS_PER_MILLISECOND);
 }
 
 static void sleepMilliseconds(unsigned int milliseconds) {
@@ -41,6 +41,7 @@ static void deliverPendingSignals(const sigset_t * runningMask, const sigset_t *
     sigprocmask(SIG_BLOCK, handledSignals, NULL);
 }
 
+// le mando a la vista para que actualice el board
 static void notifyView(GameSync * sync, const MasterArgs * args) {
     if(!args->hasView) {
         return;
@@ -49,6 +50,8 @@ static void notifyView(GameSync * sync, const MasterArgs * args) {
     sem_wait(&sync->viewUpdated);
 }
 
+// marco a los players encerrados como que estan bloqueados
+//      hasFreeNeighbour esta en board.c y me devuelve si tiene alguna celda libre o no
 static void markEnclosedPlayersAsBlocked(GameState * gs) {
     for(int i = 0; i < gs->cantPlayers; i++) {
         Player * player = &gs->players[i];
@@ -102,8 +105,7 @@ static void setPaused(GameState * gs, GameSync * sync, bool paused) {
 // Mientras el juego esta pausado el master no atiende movimientos: duerme en un pselect
 // sin descriptores hasta que llegue la proxima señal. El tiempo pausado no se le descuenta
 // al timeout, por eso al reanudar se corre hacia adelante la marca del ultimo movimiento.
-static void waitWhilePaused(GameState * gs, GameSync * sync, const MasterArgs * args,
-                            const sigset_t * runningMask, struct timespec * lastValidMove) {
+static void waitWhilePaused(GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, struct timespec * lastValidMove) {
     struct timespec pauseStart;
     clock_gettime(CLOCK_MONOTONIC, &pauseStart);
 
@@ -137,33 +139,37 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
     sigaddset(&handledSignals, SIGUSR1);
     sigprocmask(SIG_BLOCK, &handledSignals, &runningMask);
 
-    writerLock(sync);
+    writerLock(sync); // block x si voy a escribir el game_state
+    // si algun player se queda encerrado lo marco como "bloqueado"
     markEnclosedPlayersAsBlocked(gs);
     writerUnlock(sync);
 
     notifyView(sync, args);
 
+    // arranco reloj para el timeout
     struct timespec lastValidMove;
     clock_gettime(CLOCK_MONOTONIC, &lastValidMove);
 
     bool gameFinished = false;
 
-    FOR_EVER {
+    while(1) {
 
+        // por cada bucle entrego señales pendientes si hay
         deliverPendingSignals(&runningMask, &handledSignals);
 
         if(gameFinished || sigtermReceived) {
-            break;
+            break; // fin juego
         }
 
-        if(sigusr1Received) {
+        if(sigusr1Received) { // hay que pausar juego
             sigusr1Received = 0;
             waitWhilePaused(gs, sync, args, &runningMask, &lastValidMove);
             continue;
         }
 
+        // corrige tiempo de timeout si es que hubo una pausa 
         long remainingMilliseconds = (long)args->timeout * MILLISECONDS_PER_SECOND - millisecondsSince(&lastValidMove);
-        if(remainingMilliseconds <= 0) {
+        if(remainingMilliseconds <= 0) { // timeout
             break;
         }
 
@@ -181,7 +187,7 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
             }
         }
 
-        if(maxFd < 0) {
+        if(maxFd < 0) { // no hubo ningun player que pueda jugar (todos bloqueados)
             break;
         }
 
@@ -190,12 +196,15 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
             .tv_nsec = (remainingMilliseconds % MILLISECONDS_PER_SECOND) * NANOSECONDS_PER_MILLISECOND
         };
 
+        // con la runningMask dejo que entren señales
+        // espero a que algun player pida movimiento o timeout
         int readyPlayers = pselect(maxFd + 1, &readSet, NULL, NULL, &waitTime, &runningMask);
 
-        if(readyPlayers == -1) {
+        if(readyPlayers == -1) { // se recibio una señal -> vuelvo al principio
             if(errno == EINTR) {
                 continue;
             }
+            // si no fue por una señal / hubo otro error
             perror("pselect: Error esperando los movimientos de los jugadores");
             break;
         }
@@ -206,6 +215,7 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
         // Arrancamos por el siguiente al ultimo que jugo para que ninguno pueda
         // acaparar los turnos solo por tener el pipe listo antes que el resto.
+        // (RR)
         for(int offset = 0; offset < args->cantPlayers && !gameFinished; offset++) {
             int playerIndex = (*lastPlayerPlayed + 1 + offset) % args->cantPlayers;
 
@@ -243,7 +253,7 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
             sem_post(&sync->playerTurn[playerIndex]);
 
-            // El ultimo cuadro lo manda gameOver junto con el aviso de fin de juego,
+            // el ultimo cuadro lo manda gameOver junto con el aviso de fin de juego,
             // asi la vista no imprime dos veces el mismo tablero.
             if(!gameFinished) {
                 notifyView(sync, args);
@@ -254,6 +264,7 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
         }
     }
 
+    // desbloqueo señales de nuevo
     sigprocmask(SIG_SETMASK, &runningMask, NULL);
 }
 
