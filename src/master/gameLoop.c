@@ -12,7 +12,6 @@
 
 #include "board.h"
 #include "signals.h"
-#include "utils.h"
 
 #define MILLISECONDS_PER_SECOND 1000
 #define NANOSECONDS_PER_MILLISECOND 1000000L

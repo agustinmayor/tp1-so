@@ -15,7 +15,6 @@
 
 #include "game_state.h"
 #include "game_sync.h"
-#include "utils.h"
 
 #define EXPECTED_ARGC 3
 
@@ -246,7 +245,7 @@ int main(int argc, char *argv[]) {
 
     (void)!write(STDOUT_FILENO, "\033[?25l", 6);   /* ocultar cursor */
 
-    FOR_EVER {
+    while(1) {
         /* Master dice que hay cambios */
         if (sem_wait(&sync->viewSignal) == -1) {
             if (errno == EINTR) {

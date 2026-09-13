@@ -2,7 +2,6 @@
 #include "game_sync.h"
 #include "playerAI.h"
 #include "sharedMem.h"
-#include "utils.h"
 
 #include <errno.h>
 #include <signal.h>
