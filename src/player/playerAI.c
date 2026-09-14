@@ -5,7 +5,9 @@
 
 
 // Estrategia: la celda adyacente libre con mayor recompensa
-unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex) {
+unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex, const GameState * gs) {
+
+    (void)gs; // para bypasear warning de unused
 
     int myX = snapshot->playersX[myIndex];
     int myY = snapshot->playersY[myIndex];

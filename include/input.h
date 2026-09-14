@@ -18,6 +18,6 @@ void disableRawInputMode();
 
 // blockeamos hasta que llegue W, A, S o D
 // cuando llega devolvemos direccion
-unsigned char chooseMoveFromInput(const GameSnapshot * snapshot, int myIndex);
+unsigned char chooseMoveFromInput(const GameSnapshot * snapshot, int myIndex, const GameState * gs);
 
 #endif

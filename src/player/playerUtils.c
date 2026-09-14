@@ -97,7 +97,7 @@ int runPlayerLoop(int argc, char *argv[], chooseMoveFunction chooseMoveFn) {
 
         // esta parte es la que cambia por el bonus
         // chooseMoveFn es segun el tipo de player
-        unsigned char move = chooseMoveFn(&snapshot, myIndex);
+        unsigned char move = chooseMoveFn(&snapshot, myIndex, gs);
 
         if(write(STDOUT_FILENO, &move, sizeof(move)) != (ssize_t)sizeof(move)) {
             break;
