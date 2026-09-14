@@ -32,7 +32,7 @@ void takeSnapshot(GameSnapshot * snapshot, const GameState * gs, int myIndex) {
     memcpy(snapshot->board, gs->board, (size_t)snapshot->boardWidth * snapshot->boardHeight);
 }
 
-// Estrategia inicial: la celda adyacente libre con mayor recompensa
+// Estrategia: la celda adyacente libre con mayor recompensa
 unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex) {
 
     int myX = snapshot->playersX[myIndex];
