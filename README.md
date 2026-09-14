@@ -15,30 +15,30 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 ---
 
 ## Decisiones de diseño
--Se utilizan dos regiones de memoria compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los mecanismos de sincronización mediante semáforos POSIX (game_sync.h).
+-Se utilizan dos memorias compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los semaforos para la sincronización de procesos (game_sync.h).
 
--Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución mediante múltiples jugadas consecutivas.
+-Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución.
 
--Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes, permitiendo coordinar la ejecución de los distintos procesos y transmitir información entre ellos.
+-Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes, permitiendo la comunicación y sincronización entre procesos.
 
--Se utilizan dos señales para controlar el ciclo de vida del juego: SIGTERM, para solicitar la finalización del juego, y SIGUSR1, para realizar la pausa de la ejecución.
+-Se utilizan dos señales para controlar el juego: SIGTERM, para solicitar la finalización del juego, y SIGUSR1, para realizar la pausa de la ejecución.
 
--La implementación se encuentra organizada en tres módulos principales: Master, Player y View, facilitando la separación de responsabilidades y la legibilidad del código. A su vez, cada módulo se divide en múltiples archivos .c para evitar la concentración excesiva de funcionalidades en un único archivo y mejorar la mantenibilidad.
+-La implementación se encuentra organizada en tres módulos principales: Master, Player y View, facilitando la legibilidad del código. A su vez, cada módulo se divide en múltiples archivos .c para evitar la concentración excesiva de funcionalidades en un único archivo.
 
--El proceso View utiliza un buffer de salida para construir previamente la representación del estado que debe mostrarse por pantalla. Una vez finalizada la construcción, el contenido se imprime de manera conjunta, evitando múltiples operaciones de salida durante la actualización de la interfaz.
+-El proceso view utiliza un buffer de salida para construir previamente la representación del estado que debe mostrarse por pantalla. Una vez finalizada la construcción, el contenido se imprime de manera conjunta, evitando múltiples operaciones de salida durante la actualización de la interfaz.
 
--El proceso Master utiliza una estructura de datos intermedia propia para representar y validar la información antes de persistirla en la memoria compartida. De esta manera, se evita almacenar directamente datos que no hayan pasado previamente por las validaciones correspondientes.
+-El proceso master utiliza una estructura de datos intermedia propia para representar y validar la información antes de persistirla en la memoria compartida. De esta manera, se evita almacenar directamente datos que no hayan pasado previamente por las validaciones correspondientes.
 
--Durante el ciclo principal de ejecución del Master, las señales se mantienen bloqueadas para evitar que sean procesadas en momentos inconsistentes del flujo de ejecución. Estas señales se habilitan y gestionan exclusivamente dentro de la llamada a pselect, que permite esperar eventos y señales de manera controlada.
+-Durante el bucle de ejecución del master, las señales se mantienen bloqueadas para evitar que sean procesadas en momentos inconsistentes del flujo de ejecución. Estas señales se habilitan y gestionan exclusivamente dentro de la llamada a pselect, que permite esperar eventos y señales de manera controlada.
 
 -Se optó por implementar una IA para el proceso PlayerIA basada en una estrategia en la cual elige la celda adyacente con mayor puntuación.
 
 Del Bonus
--Para evitar la duplicación de código entre PlayerIA y PlayerBonus, se incorpora el módulo playerUtils, que concentra las funciones y funcionalidades comunes a ambos tipos de jugador.
+-Para evitar la duplicación de código entre playerIA y playerBonus, se incorpora el módulo playerUtils, que concentra las funciones y funcionalidades comunes a ambos tipos de jugador.
 
--Se modifica el Master original de forma mínima, incorporando únicamente la validación necesaria para restringir el registro de jugadores al modo manual, manteniendo el resto de la lógica existente sin modificaciones significativas.
+-Se modifica el master original de forma mínima, incorporando únicamente la validación necesaria para restringir el registro de varios jugadores al modo manual.
 
--Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el line buffering y el echo de caracteres. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
+-Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el buffer y el echo. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
 
 -Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
 ### Estructura del proyecto
@@ -216,11 +216,11 @@ Del Bonus
 - **Cuadro duplicado al final:** el último cuadro lo manda únicamente `gameOver`.
 
  Del Bonus
--Al implementar el bonus para escenarios con una cantidad elevada de jugadores, se observó una degradación en la capacidad de procesamiento del BonusPlayer,    provocando demoras en la selección y ejecución de movimientos.
+-Al implementar el bonus para escenarios con una cantidad elevada de jugadores, se observó una degradación en la velocidad de respuesta para el bonusPlayer.
 
- -Se detectaron situaciones en las que el BonusPlayer quedaba inmovilizado en determinadas posiciones del tablero, aun cuando el estado del juego no indicaba formalmente que la posición se encontrara bloqueada. Esto se debía a que el algoritmo del BonusPlayer no contemplaba movimientos diagonales, reduciendo el conjunto de movimientos posibles y generando falsos bloqueos.
+ -Se detectaron situaciones en las que el bonusPlayer quedaba inmovilizado, aun cuando el estado del juego no indicaba formalmente que la posición se encontrara bloqueada. Esto se debe a que el algoritmo no tiene en cuenta que el bonusPLayer no se puede mover en diagonal por lo que piensa que no esta bloqueado.
  
- -Se identificó un problema en la gestión del timeout del BonusPlayer: ante una situación de inmovilización, el proceso no era finalizado correctamente. Debido a la ausencia de movimientos válidos contemplados por la estrategia, el proceso podía permanecer ejecutándose indefinidamente en lugar de ser terminado mediante el mecanismo de timeout establecido.
+ -Se identificó un problema en la gestión del timeout del BonusPlayer: ante una situación de inmovilización, el proceso no era finalizado correctamente. Por lo que el proceso podía mantenerse indefinidamente.
  
 
 ---
