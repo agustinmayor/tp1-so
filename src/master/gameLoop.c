@@ -215,8 +215,10 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
         // Arrancamos por el siguiente al ultimo que jugo para que ninguno pueda
         // acaparar los turnos solo por tener el pipe listo antes que el resto.
         // (RR)
+        
+        int roundStart = *lastPlayerPlayed;
         for(int offset = 0; offset < args->cantPlayers && !gameFinished; offset++) {
-            int playerIndex = (*lastPlayerPlayed + 1 + offset) % args->cantPlayers;
+            int playerIndex = (roundStart + 1 + offset) % args->cantPlayers;
 
             if(playersFds[playerIndex] < 0 || !FD_ISSET(playersFds[playerIndex], &readSet)) {
                 continue;
