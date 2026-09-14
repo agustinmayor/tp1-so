@@ -9,13 +9,27 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 | --- | --- |
 | Jesús Gabriel Bastidas Díaz  | 64475 |
 | Agustín Uriel Mayor Saavedra | 65630 |
-| Alan Gabriel Navarro |  |
-| Enzo Canelo |  |
+| Alan Gabriel Navarro | 63330 |
+| Enzo Canelo | 65732 |
 
 ---
 
 ## Decisiones de diseño
+Se utilizan dos regiones de memoria compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los mecanismos de sincronización mediante semáforos POSIX (game_sync.h).
+Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución mediante múltiples jugadas consecutivas.
+Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes, permitiendo coordinar la ejecución de los distintos procesos y transmitir información entre ellos.
+Se utilizan dos señales para controlar el ciclo de vida del juego: SIGTERM, para solicitar la finalización del juego, y SIGUSR1, para realizar la pausa de la ejecución.
+La implementación se encuentra organizada en tres módulos principales: Master, Player y View, facilitando la separación de responsabilidades y la legibilidad del código. A su vez, cada módulo se divide en múltiples archivos .c para evitar la concentración excesiva de funcionalidades en un único archivo y mejorar la mantenibilidad.
+El proceso View utiliza un buffer de salida para construir previamente la representación del estado que debe mostrarse por pantalla. Una vez finalizada la construcción, el contenido se imprime de manera conjunta, evitando múltiples operaciones de salida durante la actualización de la interfaz.
+El proceso Master utiliza una estructura de datos intermedia propia para representar y validar la información antes de persistirla en la memoria compartida. De esta manera, se evita almacenar directamente datos que no hayan pasado previamente por las validaciones correspondientes.
+Durante el ciclo principal de ejecución del Master, las señales se mantienen bloqueadas para evitar que sean procesadas en momentos inconsistentes del flujo de ejecución. Estas señales se habilitan y gestionan exclusivamente dentro de la llamada a pselect, que permite esperar eventos y señales de manera controlada.
+Se optó por implementar una IA para el proceso PlayerIA basada en una estrategia en la cual elige la celda adyacente con mayor puntuación.
 
+Del Bonus
+Para evitar la duplicación de código entre PlayerIA y PlayerBonus, se incorpora el módulo playerUtils, que concentra las funciones y funcionalidades comunes a ambos tipos de jugador.
+Se modifica el Master original de forma mínima, incorporando únicamente la validación necesaria para restringir el registro de jugadores al modo manual, manteniendo el resto de la lógica existente sin modificaciones significativas.
+Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el line buffering y el echo de caracteres. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
+Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
 ### Estructura del proyecto
 
 ```
@@ -148,26 +162,22 @@ chequeos de consistencia son propios del máster provisto.
 //////ver 
 
 ## Bonus
+-Se permite el uso del teclado (WASD) para mover manualmente un jugador. 
 
-** Usuario Juega **, .
-
-```
-COmpletar 
-
-```
-
----
+En la ejecución se cambia uno de los ./bin/player por ./bin/bonusPlayer
 
 ## Limitaciones
 
-- La estrategia del jugador: 
-
+- La estrategia del jugador no ve mas allá del siguiente paso
 - La vista requiere una terminal con 256 colores y caracteres Unicode de dibujo de cajas. Si la
   terminal es más chica que el tablero, el contenido se corta.
-- No se implementan los chequeos de consistencia del máster provisto (el enunciado aclara que no son
-  obligatorios).
+- No se implementan los chequeos de consistencia del máster provisto 
 
----
+Del Bonus
+
+-Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
+-Master nuestro no se comporta igual que el normal: agrega una validacion para que sea maximo un bonusPlayer, lo demas anda igual
+
 
 ## Problemas encontrados
 
@@ -181,13 +191,16 @@ COmpletar
   lleno. Se resolvió cerrando los extremos de lectura antes de esperar a los hijos.
 - **Cuadro duplicado al final:** el último cuadro lo manda únicamente `gameOver`.
 
+ Del Bonus
+  Al implementar el bonus para escenarios con una cantidad elevada de jugadores, se observó una degradación en la capacidad de procesamiento del BonusPlayer,    provocando demoras en la selección y ejecución de movimientos.
+ Se detectaron situaciones en las que el BonusPlayer quedaba inmovilizado en determinadas posiciones del tablero, aun cuando el estado del juego no indicaba formalmente que la posición se encontrara bloqueada. Esto se debía a que el algoritmo del BonusPlayer no contemplaba movimientos diagonales, reduciendo el conjunto de movimientos posibles y generando falsos bloqueos.
+ Se identificó un problema en la gestión del timeout del BonusPlayer: ante una situación de inmovilización, el proceso no era finalizado correctamente. Debido a la ausencia de movimientos válidos contemplados por la estrategia, el proceso podía permanecer ejecutándose indefinidamente en lugar de ser terminado mediante el mecanismo de timeout establecido.
+ 
+
 ---
 
 ## Citas de fragmentos de código / uso de IA
-
-//////// COMPLETAR
-
-- Fragmentos de terceros: ????
-- Uso de IA: .
+- Se utilizaron modelos de IA como asistencia para tareas de debugging, e implementación de funciones 
+- Toda implementación de IA fue revisada y adaptada manualmente.
 - Documentación consultada: `shm_overview(7)`, `sem_overview(7)`, `pselect(2)`, `select_tut(2)`,
   `pipe(7)`, `sigaction(2)`.            
