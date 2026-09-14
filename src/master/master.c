@@ -23,15 +23,17 @@ int main(int argc, char *argv[]) {
     parseArgs(argc, argv, &args);
 
     size_t gameStateSize = sizeof(GameState) + ((size_t)args.width * args.height * sizeof(signed char));
+    // despues del tablero queda lugar para el resultado que la vista lee al terminar
+    size_t gameStateShmSize = gameStateSize + sizeof(GameResult);
     size_t gameSyncSize = sizeof(GameSync);
 
     // --- Creamos la memoria compartida de game_state.h ---
 
     int shmFdGameState;
-    GameState * gs = createSharedMem(SHM_GAME_STATE_NAME, gameStateSize, &shmFdGameState);
+    GameState * gs = createSharedMem(SHM_GAME_STATE_NAME, gameStateShmSize, &shmFdGameState);
 
     // Inicializamos el estado del juego en cero
-    memset(gs, 0, gameStateSize);
+    memset(gs, 0, gameStateShmSize);
 
     // guardamos las dim del tablero, la cantidad de jugadores y las flags
     gs->boardWidth = args.width;
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     semDestroy(sync, args.cantPlayers);
     removeSharedMem(SHM_GAME_SYNC_NAME, shmFdGameSync, sync, gameSyncSize);
-    removeSharedMem(SHM_GAME_STATE_NAME, shmFdGameState, gs, gameStateSize);
+    removeSharedMem(SHM_GAME_STATE_NAME, shmFdGameState, gs, gameStateShmSize);
 
     return 0;
 }

@@ -9,8 +9,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "game_state.h"
@@ -201,6 +203,65 @@ static void renderFrame(FrameBuf *f, const GameState *st) {
     emit(f, "\033[0J");   /* borra todo lo que haya quedado mas abajo */
 }
 
+
+static bool readResult(size_t stateSize, GameResult *out) {
+    int fd = shm_open(SHM_GAME_STATE_NAME, O_RDONLY, 0);
+    if (fd == -1) {
+        return false;
+    }
+
+    struct stat sb;
+    size_t total = stateSize + sizeof(GameResult);
+    if (fstat(fd, &sb) == -1 || (size_t)sb.st_size < total) {
+        close(fd);
+        return false;
+    }
+
+    unsigned char *mem = mmap(NULL, total, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+    if (mem == MAP_FAILED) {
+        return false;
+    }
+
+    /* memcpy y no un puntero directo: stateSize puede ser impar y el struct
+       quedaria desalineado */
+    memcpy(out, mem + stateSize, sizeof(GameResult));
+    munmap(mem, total);
+    return out->ready;
+}
+
+/* Imprime centrado el resultado de el ganador */
+static void renderResult(FrameBuf *f, const GameState *st, const GameResult *res) {
+    char text[128];
+    int n;
+    bool hasWinner = res->hasWinner && res->winnerId < st->cantPlayers;
+
+    if (hasWinner) {
+        char suffix[32] = "";
+        if (st->cantPlayers > 1 && res->margin > 0) {
+            snprintf(suffix, sizeof suffix, ", %u de ventaja", res->margin);
+        } else if (st->cantPlayers > 1) {
+            snprintf(suffix, sizeof suffix, ", por desempate");
+        }
+        n = snprintf(text, sizeof text, "GANADOR: %.16s (jugador %u) con %u puntos%s",
+                     st->players[res->winnerId].playerName, (unsigned)res->winnerId,
+                     res->winnerScore, suffix);
+    } else {
+        n = snprintf(text, sizeof text, "EMPATE con %u puntos", res->winnerScore);
+    }
+
+    unsigned cols, rows;
+    terminalSize(&cols, &rows);
+
+    f->len = 0;
+    pad(f, centerPad(cols, (n > 0) ? (unsigned)n : 0));
+    if (hasWinner) {
+        emit(f, "\033[1;38;5;%um%s" RESET "\n\n", (unsigned)PLAYER_HEAD[res->winnerId], text);
+    } else {
+        emit(f, "\033[1m%s" RESET "\n\n", text);
+    }
+}
+
 /* si cortan con Ctrl-C hay que devolver el cursor, si no el terminal queda sin el */
 static void onInterrupt(int sig) {
     (void)!write(STDOUT_FILENO, "\033[?25h\n", 7);
@@ -273,6 +334,13 @@ int main(int argc, char *argv[]) {
 
     /* baja  cursor para que el resumen del master no lo pise. */
     (void)!write(STDOUT_FILENO, "\033[?25h\n\n", 8);
+
+    /* resultado que dejo el master al terminar: ganador y por cuanto */
+    GameResult result;
+    if (state->isGameOver && readResult(stateSize, &result)) {
+        renderResult(&frame, state, &result);
+        (void)!write(STDOUT_FILENO, frame.data, frame.len);
+    }
 
     free(frame.data);
     munmap(state, stateSize);

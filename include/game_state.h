@@ -31,4 +31,16 @@ typedef struct {
     signed char board[]; // celda libre = recompensa 1..9, celda capturada = -id del dueño
 } GameState;
 
+
+/* Resultado final del juego. El master lo escribe a continuacion del tablero,
+ dentro de la misma /game_state, y la vista lo lee cuando termina el juego. */
+ 
+typedef struct {
+    unsigned int winnerScore;   // puntaje del ganador
+    unsigned int margin;        // puntos de ventaja sobre el segundo
+    unsigned char winnerId;     // indice del ganador en players[]
+    bool hasWinner;             // false si hubo empate en todos los criterios
+    bool ready;                 // true cuando el master ya lo escribio
+} GameResult;
+
 #endif

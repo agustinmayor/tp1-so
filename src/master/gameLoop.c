@@ -269,6 +269,58 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
     sigprocmask(SIG_SETMASK, &runningMask, NULL);
 }
 
+// Desempate del enunciado: mas puntos, menos movimientos validos, menos invalidos.
+// Devuelve > 0 si gana a, < 0 si gana b, 0 si empatan en todos los criterios.
+static int comparePlayers(const Player * a, const Player * b) {
+    if(a->playerScore != b->playerScore) {
+        return (a->playerScore > b->playerScore) ? 1 : -1;
+    }
+    if(a->validMoves != b->validMoves) {
+        return (a->validMoves < b->validMoves) ? 1 : -1;
+    }
+    if(a->invalidMoves != b->invalidMoves) {
+        return (a->invalidMoves < b->invalidMoves) ? 1 : -1;
+    }
+    return 0;
+}
+
+// Calcula el ganador y por cuanto gano, y lo escribe a continuacion del tablero
+// dentro de /game_state para que la vista lo muestre. Se llama con el writerLock tomado.
+static void writeResult(GameState * gs) {
+    int best = 0;
+    for(int i = 1; i < gs->cantPlayers; i++) {
+        if(comparePlayers(&gs->players[i], &gs->players[best]) > 0) {
+            best = i;
+        }
+    }
+
+    int second = -1;
+    bool tied = false;
+    for(int i = 0; i < gs->cantPlayers; i++) {
+        if(i == best) {
+            continue;
+        }
+        if(comparePlayers(&gs->players[best], &gs->players[i]) == 0) {
+            tied = true;
+        }
+        if(second == -1 || comparePlayers(&gs->players[i], &gs->players[second]) > 0) {
+            second = i;
+        }
+    }
+
+    GameResult result;
+    memset(&result, 0, sizeof(result));
+    result.winnerId = (unsigned char)best;
+    result.winnerScore = gs->players[best].playerScore;
+    result.margin = (second == -1) ? 0 : result.winnerScore - gs->players[second].playerScore;
+    result.hasWinner = !tied;
+    result.ready = true;
+
+    // memcpy y no un puntero directo: el tablero puede tener tamaño impar y el struct quedaria desalineado
+    size_t boardSize = (size_t)gs->boardWidth * gs->boardHeight;
+    memcpy((unsigned char *)gs + sizeof(GameState) + boardSize, &result, sizeof(result));
+}
+
 // Imprime como termino un hijo: valor de retorno del exit, o señal que lo mato
 static void printChildOutcome(const char * label, int status) {
     if(WIFEXITED(status)) {
@@ -284,7 +336,10 @@ static void printChildOutcome(const char * label, int status) {
 
 void gameOver(GameState * gs, GameSync * sync, const MasterArgs * args, pid_t playersPids[], int playersFds[], pid_t viewPid) {
 
+    // el resultado queda escrito antes del ultimo aviso a la vista,
+    // asi ya esta disponible cuando la vista sale de su bucle
     writerLock(sync);
+    writeResult(gs);
     gs->isGameOver = true;
     writerUnlock(sync);
 
