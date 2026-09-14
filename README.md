@@ -175,15 +175,13 @@ chequeos de consistencia son propios del máster provisto.
 
 - Vista: `bin/view`
 - Jugador: `bin/player`
-
+- Master: 'bin/master'
 ---
-
-//////ver 
 
 ## Bonus
 -Se permite el uso del teclado (WASD) para mover manualmente un jugador. 
 
--En la ejecución se cambia uno de los ./bin/player por ./bin/bonusPlayer
+-En la ejecución se cambia uno de los ./bin/player por ./bin/bonusPlayer (estando parado en la branch bonusPlayer)
 
 ## Limitaciones
 
