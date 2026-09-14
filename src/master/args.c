@@ -5,6 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <libgen.h>
+
+// --------------------- BONUS ---------------------
+// chequeo de maximo un jugador bonus por partida
+#define BONUS_PLAYER_NAME "bonusPlayer"
+
+static bool isBonusPlayer(const char * playerPath) {
+    char pathCopy[256];
+
+    strncpy(pathCopy, playerPath, sizeof(pathCopy) - 1);
+
+    pathCopy[sizeof(pathCopy) - 1] = '\0';
+
+    return strcmp(basename(pathCopy), BONUS_PLAYER_NAME) == 0;
+}
+
+// -------------------------------------------------
 
 static void exitWithUsage(const char * programName) {
     fprintf(stderr, "El formato debe ser: %s [-w width][-h height][-d delay][-t timeout][-s seed][-v vista] -p jugador1 [jugador2 ...]\n", programName);
@@ -28,6 +45,21 @@ static void addPlayerPath(MasterArgs * args, char * path, const char * programNa
         fprintf(stderr, "Cantidad de jugadores invalida. El maximo es %d\n", MAX_PLAYERS);
         exitWithUsage(programName);
     }
+
+    // --------------------- BONUS ---------------------
+
+    if(isBonusPlayer(path)) {
+        for(int i = 0; i < args->cantPlayers; i++) {
+            if(isBonusPlayer(args->playerPaths[i])) {
+                fprintf(stderr, "Solo se permite un jugador bonus por partida\n");
+                exitWithUsage(programName);
+            }
+        }
+    }
+
+    // --------------------------------------------------
+
+
     args->playerPaths[args->cantPlayers++] = path;
 }
 
