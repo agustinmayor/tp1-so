@@ -7,8 +7,8 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 
 | Nombre y Apellido | Legajo |
 | --- | --- |
-| Jesús Gabriel Bastidas Díaz | 64475 |
-| Agustín Uriel Mayor Saavedra |  |
+| Jesús Gabriel Bastidas Díaz  | 64475 |
+| Agustín Uriel Mayor Saavedra | 65630 |
 | Alan Gabriel Navarro |  |
 | Enzo Canelo |  |
 
