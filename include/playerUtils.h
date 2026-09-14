@@ -11,4 +11,11 @@ typedef unsigned char (*chooseMoveFunction)(const GameSnapshot * snapshot, int m
 // sin importar si es IA o si es el playerBonus
 int runPlayerLoop(int argc, char * argv[], chooseMoveFunction chooseMoveFn);
 
+
+// Funciones para tomar snapshots de el estado del juego
+bool createSnapshot(GameSnapshot * snapshot, unsigned short boardWidth, unsigned short boardHeight);
+
+void destroySnapshot(GameSnapshot * snapshot);
+
+void takeSnapshot(GameSnapshot * snapshot, const GameState * gs, int myIndex);
 #endif

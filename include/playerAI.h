@@ -17,11 +17,6 @@ typedef struct {
     signed char * board;
 } GameSnapshot;
 
-bool createSnapshot(GameSnapshot * snapshot, unsigned short boardWidth, unsigned short boardHeight);
-
-void destroySnapshot(GameSnapshot * snapshot);
-
-void takeSnapshot(GameSnapshot * snapshot, const GameState * gs, int myIndex);
 
 // Devuelve la direccion elegida, en el rango [0, 7]
 unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex);
