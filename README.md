@@ -17,6 +17,8 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 ## Decisiones de diseño
 -Se utilizan dos memorias compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los semaforos para la sincronización de procesos (game_sync.h).
 
+-El máster crea /game_state con 12 bytes más y, al terminar el juego, escribe ahí un GameResult, justo después del tablero. Esos 12 bytes guardan el puntaje del ganador (4 bytes), la ventaja sobre el segundo (4), el id del ganador (1), si hubo ganador o empate (1), si ya está escrito (1) y 1 byte de relleno. La vista los lee al salir de su bucle y dibuja la línea del ganador.
+
 -Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución.
 
 -Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes, permitiendo la comunicación y sincronización entre procesos.
