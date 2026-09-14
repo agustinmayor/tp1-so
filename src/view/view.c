@@ -60,7 +60,7 @@ static void emit(FrameBuf *f, const char *fmt, ...) {
 static unsigned centerPad(unsigned total, unsigned item) {
     return (total > item) ? (total - item) / 2 : 0;
 }
-
+/* Agrega espacios  */
 static void pad(FrameBuf *f, unsigned n) {
     if (n > 0) {
         emit(f, "%*s", (int)n, "");
@@ -84,7 +84,7 @@ static void terminalSize(unsigned *cols, unsigned *rows) {
     *cols = (c > 0 && c <= 1000) ? (unsigned)c : 80;
     *rows = (r > 0 && r <= 1000) ? (unsigned)r : 24;
 }
-
+/* Mapea un segmento de memoria compartida */
 static void *mapShm(const char *name, int openFlags, int prot, size_t size) {
     int fd = shm_open(name, openFlags, 0);
     if (fd == -1) {
@@ -109,13 +109,13 @@ static int headOwner(const GameState *st, unsigned x, unsigned y) {
     }
     return -1;
 }
-
+/* Borde horiz marco */
 static void hline(FrameBuf *f, unsigned n) {
     for (unsigned i = 0; i < n; i++) {
         emit(f, "\u2500");
     }
 }
-
+/* Renderiza el marco del tablero */
 static void renderFrame(FrameBuf *f, const GameState *st) {
     unsigned w = st->boardWidth;
     unsigned h = st->boardHeight;
@@ -222,9 +222,9 @@ int main(int argc, char *argv[]) {
     }
 
     size_t stateSize = sizeof(GameState) + width * height;
-    GameState *state = mapShm(SHM_GAME_STATE_NAME, O_RDONLY, PROT_READ, stateSize);
+    GameState *state = mapShm(SHM_GAME_STATE_NAME, O_RDONLY, PROT_READ, stateSize);                     // mapea de  mem compartida del estado del juego
 
-    GameSync *sync = mapShm(SHM_GAME_SYNC_NAME, O_RDWR, PROT_READ | PROT_WRITE, sizeof(GameSync));
+    GameSync *sync = mapShm(SHM_GAME_SYNC_NAME, O_RDWR, PROT_READ | PROT_WRITE, sizeof(GameSync));      // mapea de  mem compartida del semaforo
 
     FrameBuf frame;
     frame.cap  = (height + 60) * (width * 48 + 512) + 8192;
