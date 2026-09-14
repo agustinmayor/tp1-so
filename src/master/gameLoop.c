@@ -6,12 +6,14 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 
 #include <sys/select.h>
 #include <sys/wait.h>
 
 #include "board.h"
 #include "signals.h"
+#include "args.h"
 
 #define MILLISECONDS_PER_SECOND 1000
 #define NANOSECONDS_PER_MILLISECOND 1000000L
@@ -346,6 +348,14 @@ void gameOver(GameState * gs, GameSync * sync, const MasterArgs * args, pid_t pl
     // despierto a los jugadores que estuvieran esperando su turno para que vean que el juego termino
     for(int i = 0; i < args->cantPlayers; i++) {
         sem_post(&sync->playerTurn[i]);
+    }
+
+    // mandamos sigterm al bonusPlayer
+    // si se quedo esperando un caracter y paso el timeout
+    for(int i = 0; i < args->cantPlayers; i++) {
+        if(isBonusPlayer(args->playerPaths[i])) {
+            kill(playersPids[i], SIGTERM);
+        }
     }
 
     // cierro los extremos de lectura antes de esperar: si un jugador quedara escribiendo

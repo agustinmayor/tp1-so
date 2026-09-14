@@ -11,7 +11,7 @@
 // chequeo de maximo un jugador bonus por partida
 #define BONUS_PLAYER_NAME "bonusPlayer"
 
-static bool isBonusPlayer(const char * playerPath) {
+bool isBonusPlayer(const char * playerPath) {
     char pathCopy[256];
 
     strncpy(pathCopy, playerPath, sizeof(pathCopy) - 1);

@@ -6,4 +6,5 @@
 // Parsea la linea de comandos del master y aborta con un mensaje de uso si es invalida.
 void parseArgs(int argc, char * argv[], MasterArgs * args);
 
+bool isBonusPlayer(const char * playerPath);
 #endif
