@@ -1,8 +1,6 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-// Geometría del tablero compartida entre el master y los jugadores.
-// Las dos tablas de direcciones tienen que ser idénticas en ambos lados.
 
 #include "game_state.h"
 
