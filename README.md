@@ -15,13 +15,13 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 ---
 
 ## Decisiones de diseño
--Se utilizan dos memorias compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los semaforos para la sincronización de procesos (game_sync.h).
+- Se utilizan dos memorias compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los semaforos para la sincronización de procesos (game_sync.h).
 
--El máster crea /game_state con 12 bytes más y, al terminar el juego, escribe ahí un GameResult, justo después del tablero. Esos 12 bytes guardan el puntaje del ganador (4 bytes), la ventaja sobre el segundo (4), el id del ganador (1), si hubo ganador o empate (1), si ya está escrito (1) y 1 byte de relleno. La vista los lee al salir de su bucle y dibuja la línea del ganador.
+- El máster crea /game_state con 12 bytes más y, al terminar el juego, escribe ahí un GameResult (diferente con el master de la cátedra, para que la vista pueda imprimir al ganador), justo después del tablero. Esos 12 bytes guardan el puntaje del ganador (4 bytes), la ventaja sobre el segundo (4), el id del ganador (1), si hubo ganador o empate (1), si ya está escrito (1) y 1 byte de relleno. La vista los lee al salir de su bucle y dibuja la línea del ganador.
 
--Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución.
+- Se implementa un algoritmo de planificación Round Robin para distribuir de manera equitativa las oportunidades de juego entre los jugadores y evitar que un único jugador monopolice la ejecución.
 
--Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes, permitiendo la comunicación y sincronización entre procesos.
+- Para la comunicación y sincronización entre procesos se utilizan semáforos POSIX y pipes.
 
 -Se utilizan dos señales para controlar el juego: SIGTERM, para solicitar la finalización del juego, y SIGUSR1, para realizar la pausa de la ejecución.
 
@@ -29,20 +29,21 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 
 -El proceso view utiliza un buffer de salida para construir previamente la representación del estado que debe mostrarse por pantalla. Una vez finalizada la construcción, el contenido se imprime de manera conjunta, evitando múltiples operaciones de salida durante la actualización de la interfaz.
 
--El proceso master utiliza una estructura de datos intermedia propia para representar y validar la información antes de persistirla en la memoria compartida. De esta manera, se evita almacenar directamente datos que no hayan pasado previamente por las validaciones correspondientes.
+-El proceso master utiliza una estructura de datos intermedia propia para representar y validar la información (los argumentos recibidos por consola) antes de persistirla en la memoria compartida. De esta manera, se evita almacenar directamente datos que no hayan pasado previamente por las validaciones correspondientes.
 
 -Durante el bucle de ejecución del master, las señales se mantienen bloqueadas para evitar que sean procesadas en momentos inconsistentes del flujo de ejecución. Estas señales se habilitan y gestionan exclusivamente dentro de la llamada a pselect, que permite esperar eventos y señales de manera controlada.
 
 -Se optó por implementar una IA para el proceso PlayerIA basada en una estrategia en la cual elige la celda adyacente con mayor puntuación.
 
-Del Bonus
--Para evitar la duplicación de código entre playerIA y playerBonus, se incorpora el módulo playerUtils, que concentra las funciones y funcionalidades comunes a ambos tipos de jugador.
+### Del Bonus
+- Para evitar la duplicación de código entre playerIA y playerBonus, se incorpora el módulo playerUtils, que concentra las funciones y funcionalidades comunes a ambos tipos de jugador.
 
--Se modifica el master original de forma mínima, incorporando únicamente la validación necesaria para restringir el registro de varios jugadores al modo manual.
+- Se modifica el master original de forma mínima, incorporando únicamente la validación necesaria para restringir el registro de varios jugadores al modo manual (además del cambio de memoria compartida para imprimir al
+ganador antes aclarada).
 
--Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el buffer y el echo. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
+- Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el buffer y el echo. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
 
--Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
+- Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
 ### Estructura del proyecto
 
 ```
@@ -104,8 +105,6 @@ así una escritura accidental aborta en vez de corromper el estado.
  todo lector pasa por él antes de registrarse, de modo que ninguno se cuela si el
   máster ya está esperando para escribir. `cantReaders` (bajo `readersMutex`) hace que solo el
   primer lector tome y el último libere `gameStateMutex`.
-- `playerTurn[i]` comienza en 1 y habilita un movimiento por jugador; el máster lo repone recién
-  después de procesar la solicitud.
 
 ### Máster
 
@@ -157,9 +156,9 @@ docker run -it --rm -v "$PWD":/root -w /root agodio/itba-so-multiarch:3.1 bash
 ```
 
 ```bash
-make          # genera master, view y player en bin/
-make clean
-./bin/master -w 15 -h 15 -d 150 -t 10 -s 42 -v ./bin/view -p ./bin/player ./bin/player ./bin/player
+make clean    # limpia archivos viejos
+make all      # genera master, view y player en bin/
+./bin/master -w 15 -h 15 -d 150 -t 10 -s 42 -v ./bin/view -p ./bin/player ./bin/player ./bin/player  # los valores numericos son solo un ejemplo
 ```
 
 Parámetros, en cualquier orden: `-w` ancho y `-h` alto (default y mínimo 10), `-d` delay en ms
@@ -175,28 +174,23 @@ chequeos de consistencia son propios del máster provisto.
 
 - Vista: `bin/view`
 - Jugador: `bin/player`
-- Master: 'bin/master'
+- Master: `bin/master`
 ---
 
 ## Bonus
--Se permite el uso del teclado (WASD) para mover manualmente un jugador. 
+- Se permite el uso del teclado (WASD) para mover manualmente un jugador. 
 
--En la ejecución se cambia uno de los ./bin/player por ./bin/bonusPlayer (estando parado en la branch bonusPlayer)
+- En la ejecución se cambia uno de los ./bin/player por ./bin/bonusPlayer (estando parado en la branch bonusPlayer), se corre igual que como se corre la branch main.
 
 ## Limitaciones
 
-- La estrategia del jugador no ve mas allá del siguiente paso
-  
-- La vista requiere una terminal con 256 colores y caracteres Unicode de dibujo de cajas. Si la
-  terminal es más chica que el tablero, el contenido se corta.
+- La estrategia del jugador IA no ve mas allá del siguiente paso, solo busca la celda contigua con mayor puntaje.
 
-- No se implementan los chequeos de consistencia del máster provisto 
+### Del Bonus
 
-Del Bonus
+- Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
 
--Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
-
--Master nuestro no se comporta igual que el normal: agrega una validacion para que sea maximo un bonusPlayer, lo demas anda igual
+- Master nuestro no se comporta igual que el normal: agrega una validacion para que sea maximo un bonusPlayer, lo demas anda igual.
 
 
 ## Problemas encontrados
@@ -204,23 +198,17 @@ Del Bonus
 - **Jugadores colgados al morir el máster:** quedaban bloqueados para siempre en `sem_wait`. Se
   resolvió con `sem_timedwait` en tramos verificando `getppid()`.
 
-- **EOF que nunca llegaba:** los jugadores heredaban los extremos de lectura de los pipes de sus
-  hermanos. Se resolvió con `FD_CLOEXEC`.
-
-- **Señales perdidas:** existía una carrera entre chequear la bandera y dormirse. Se resolvió
-  bloqueándolas durante el loop y desbloqueándolas dentro del `pselect`.
-
 - **Deadlock al cerrar:** el máster colgaba en `waitpid` con un jugador escribiendo en un pipe
   lleno. Se resolvió cerrando los extremos de lectura antes de esperar a los hijos.
 
 - **Cuadro duplicado al final:** el último cuadro lo manda únicamente `gameOver`.
 
- Del Bonus
--Al implementar el bonus para escenarios con una cantidad elevada de jugadores, se observó una degradación en la velocidad de respuesta para el bonusPlayer.
+ ### Del Bonus
+- Al implementar el bonus para escenarios con una cantidad elevada de jugadores, se observó una degradación en la velocidad de respuesta para el bonusPlayer.
 
- -Se detectaron situaciones en las que el bonusPlayer quedaba inmovilizado, aun cuando el estado del juego no indicaba formalmente que la posición se encontrara bloqueada. Esto se debe a que el algoritmo no tiene en cuenta que el bonusPLayer no se puede mover en diagonal por lo que piensa que no esta bloqueado.
+- Se detectaron situaciones en las que el bonusPlayer quedaba inmovilizado, aun cuando el estado del juego no indicaba formalmente que la posición se encontrara bloqueada. Esto se debe a que el algoritmo no tiene en cuenta que el bonusPLayer no se puede mover en diagonal por lo que piensa que no esta bloqueado.
  
- -Se identificó un problema en la gestión del timeout del BonusPlayer: ante una situación de inmovilización, el proceso no era finalizado correctamente. Por lo que el proceso podía mantenerse indefinidamente.
+- Se identificó un problema en la gestión del timeout del BonusPlayer: ante una situación de inmovilización, el proceso no era finalizado correctamente. Por lo que el proceso podía mantenerse indefinidamente.
  
 
 ---
