@@ -5,7 +5,7 @@
 
 // funcion que decide el mov de cada player
 // lo elige cada player segun si es IA o si es playerBonus
-typedef unsigned char (*chooseMoveFunction)(const GameSnapshot * snapshot, int myIndex, const GameState * gs);
+typedef unsigned char (*chooseMoveFunction)(const GameSnapshot * snapshot, int myIndex);
 
 // corremos el loop generico de un jugador
 // sin importar si es IA o si es el playerBonus

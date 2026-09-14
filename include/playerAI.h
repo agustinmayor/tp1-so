@@ -19,6 +19,6 @@ typedef struct {
 
 
 // Devuelve la direccion elegida, en el rango [0, 7]
-unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex, const GameState * gs);
+unsigned char chooseMove(const GameSnapshot * snapshot, int myIndex);
 
 #endif
