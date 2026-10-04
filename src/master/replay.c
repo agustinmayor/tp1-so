@@ -154,7 +154,8 @@ static void play(const ReplayLog * log, GameState * gs, GameSync * sync, const M
 
     free(realState);
 
-    notifyView(sync, args); // vuelvo al estado real
+    // termino una replay, se puede poner otra o reanudar el juego
+    fprintf(stderr, "Replay finalizada. Juego pausado. Comando disponible: replay [desde [hasta]]\n");
 }
 
 // parseo cada argumento pasado por consola
