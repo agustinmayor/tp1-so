@@ -29,4 +29,13 @@ typedef struct {
     size_t capacity;
 } ReplayLog;
 
+// Funciones para manejar todo el log de jugadas
+bool replayInit(ReplayLog * log, const GameState * gs, size_t stateSize);
+void replayRecord(ReplayLog * log, int playerIdx, unsigned char move);
+void replayDestroy(ReplayLog * log);
+
+// Parsea y ejecuta un comando pasado por stdin
+// valida numeros de jugada y reproduce la replay pedida
+void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask);
+
 #endif
