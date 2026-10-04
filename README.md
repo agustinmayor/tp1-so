@@ -14,6 +14,27 @@ mediante memoria compartida POSIX, semáforos anónimos y pipes anónimos.
 
 ---
 
+## Challenge: Replay
+
+Mientras el juego está pausado o cuando la partida termina, se pueden escribir comandos en la terminal en donde está corriendo el máster:
+
+| Comando | Muestra |
+| --- | --- |
+| `replay` | toda la partida, desde el tablero inicial hasta el punto actual |
+| `replay N` | desde la jugada `N` hasta el punto actual |
+| `replay N M` | desde la jugada `N` hasta la `M` |
+|`over`| (solo al terminar la partida) sigue con el cierre normal del juego: resultado final y fin de los procesos |
+
+- El cuadro `k` es el estado después de `k` jugadas (el cuadro 0 es el estado incial).
+
+- Cada movimiento procesado cuenta como una jugada, sea válido o inválido.
+
+- Se valida que los parámetros pasados a `replay` sean enteros positivos válidos.
+
+- El replay requiere vista (-v).
+
+---
+
 ## Decisiones de diseño
 - Se utilizan dos memorias compartida. La primera almacena el estado global del juego y la información de los jugadores (game_state.h), mientras que la segunda contiene los semaforos para la sincronización de procesos (game_sync.h).
 
@@ -44,6 +65,14 @@ ganador antes aclarada).
 - Para la lectura de los inputs del jugador, se configura la terminal en modo raw, deshabilitando el buffer y el echo. Esto permite procesar las entradas de forma inmediata, sin esperar a la pulsación de Enter y sin mostrar automáticamente los caracteres ingresados en pantalla.
 
 - Solo se permite el movimiento con WASD lo cual no permite el movimiento en diagonal.
+
+### Del Challenge
+- El replay lo maneja el máster. Guarda una copia del estado inicial y un log con todas las jugadas procesadas en orden, que las reproduce volviendo a aplicar las jugadas con la misma lógica que en el loop del juego normal.
+
+- No se modificó el layout de ninguna de las memorias compartidas, sino que el máster escribe encima del game_state con la jugada que quiere mostrar en replay.
+
+- Los comandos se leen por stdin del máster, solo mientras el juego está en pausa o terminó. Se agregó `STDIN_FILENO`al pselect para esperar señales con la misma máscara.
+
 ### Estructura del proyecto
 
 ```
