@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 
 #include "board.h"
+#include "replay.h"
 #include "signals.h"
 
 #define MILLISECONDS_PER_SECOND 1000
@@ -41,7 +42,7 @@ static void deliverPendingSignals(const sigset_t * runningMask, const sigset_t *
 }
 
 // le mando a la vista para que actualice el board
-static void notifyView(GameSync * sync, const MasterArgs * args) {
+void notifyView(GameSync * sync, const MasterArgs * args) {
     if(!args->hasView) {
         return;
     }
@@ -51,7 +52,7 @@ static void notifyView(GameSync * sync, const MasterArgs * args) {
 
 // marco a los players encerrados como que estan bloqueados
 //      hasFreeNeighbour esta en board.c y me devuelve si tiene alguna celda libre o no
-static void markEnclosedPlayersAsBlocked(GameState * gs) {
+void markEnclosedPlayersAsBlocked(GameState * gs) {
     for(int i = 0; i < gs->cantPlayers; i++) {
         Player * player = &gs->players[i];
         if(!player->isBlocked &&
@@ -70,7 +71,7 @@ static bool everyPlayerIsBlocked(const GameState * gs) {
     return true;
 }
 
-static bool applyMove(GameState * gs, int playerIndex, unsigned char move) {
+bool applyMove(GameState * gs, int playerIndex, unsigned char move) {
     Player * player = &gs->players[playerIndex];
 
     if(move >= DIRECTION_COUNT) {
@@ -104,15 +105,45 @@ static void setPaused(GameState * gs, GameSync * sync, bool paused) {
 // Mientras el juego esta pausado el master no atiende movimientos: duerme en un pselect
 // sin descriptores hasta que llegue la proxima señal. El tiempo pausado no se le descuenta
 // al timeout, por eso al reanudar se corre hacia adelante la marca del ultimo movimiento.
-static void waitWhilePaused(GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, struct timespec * lastValidMove) {
+static void waitWhilePaused(GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, struct timespec * lastValidMove, ReplayLog * replay) {
     struct timespec pauseStart;
     clock_gettime(CLOCK_MONOTONIC, &pauseStart);
 
     setPaused(gs, sync, true);
     notifyView(sync, args);
+    // informo que se puede usar replay
+    fprintf(stderr, "Juego pausado. Comando disponible: replay [desde [hasta]]\n");
 
+    // Igual que antes, el master duerme en el pselect con la mascara de ejecucion, pero ahora
+    // tambien despierta si hay un comando en stdin.
+    bool stdinOpen = true;
     while(sigusr1Received == 0 && sigtermReceived == 0) {
-        pselect(0, NULL, NULL, NULL, NULL, runningMask);
+        
+        fd_set readSet;
+        FD_ZERO(&readSet);
+        if(stdinOpen) {
+            FD_SET(STDIN_FILENO, &readSet);
+        }
+
+        int ready = pselect(stdinOpen ? STDIN_FILENO + 1 : 0, stdinOpen ? &readSet : NULL, NULL, NULL, NULL, runningMask);
+
+        if(ready == -1 && errno != EINTR) { // stdin invalido: seguimos solo con señales
+            stdinOpen = false;
+            continue;
+        }
+
+        if(ready > 0 && FD_ISSET(STDIN_FILENO, &readSet)) {
+            char line[128];
+            ssize_t readBytes = read(STDIN_FILENO, line, sizeof(line) - 1);
+
+            if(readBytes <= 0) { // EOF: si no se desactiva, el pselect despertaria sin parar
+                stdinOpen = false;
+            }
+            else {
+                line[readBytes] = '\0';
+                replayHandleCommand(line, replay, gs, sync, args, runningMask);
+            }
+        }
     }
     sigusr1Received = 0;
 
@@ -143,6 +174,12 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
     markEnclosedPlayersAsBlocked(gs);
     writerUnlock(sync);
 
+    // registro del estado inicial y de las jugadas para el replay (sin vista no hay a quien mostrarlo)
+    ReplayLog replay;
+    if(!args->hasView || !replayInit(&replay, gs, sizeof(GameState) + (size_t)gs->boardWidth * gs->boardHeight)) {
+        memset(&replay, 0, sizeof(replay));
+    }
+
     notifyView(sync, args);
 
     // arranco reloj para el timeout
@@ -162,7 +199,7 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
         if(sigusr1Received) { // hay que pausar juego
             sigusr1Received = 0;
-            waitWhilePaused(gs, sync, args, &runningMask, &lastValidMove);
+            waitWhilePaused(gs, sync, args, &runningMask, &lastValidMove, &replay);
             continue;
         }
 
@@ -233,6 +270,10 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
                 writerLock(sync);
                 gs->players[playerIndex].isBlocked = true;
+                
+                // guardo jugada en replay
+                replayRecord(&replay, playerIndex, REPLAY_DISCONNECT);
+                
                 gameFinished = everyPlayerIsBlocked(gs);
                 gs->isGameOver = gameFinished;
                 writerUnlock(sync);
@@ -243,6 +284,10 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
             writerLock(sync);
             bool moveWasValid = applyMove(gs, playerIndex, move);
+            
+            // guardo jugada en replay
+            replayRecord(&replay, playerIndex, move);
+
             markEnclosedPlayersAsBlocked(gs);
             gameFinished = everyPlayerIsBlocked(gs);
             gs->isGameOver = gameFinished;
@@ -264,6 +309,9 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
             }
         }
     }
+
+    // libero recursos del replay 
+    replayDestroy(&replay);
 
     // desbloqueo señales de nuevo
     sigprocmask(SIG_SETMASK, &runningMask, NULL);

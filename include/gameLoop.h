@@ -19,4 +19,9 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
 
 void gameOver(GameState * gs, GameSync * sync, const MasterArgs * args, pid_t playersPids[], int playersFds[], pid_t viewPid);
 
+// Compartimos a replay.c
+bool applyMove(GameState * gs, int playerIndex, unsigned char move);
+void markEnclosedPlayersAsBlocked(GameState * gs);
+void notifyView(GameSync * sync, const MasterArgs * args);
+
 #endif

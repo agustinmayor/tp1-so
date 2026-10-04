@@ -72,7 +72,7 @@ void replayDestroy(ReplayLog * log) {
 
 // Aplica una entrada de replay al estado del juego
 // lo uso para poder reproducir la replay desde la vista
-static void appyEntry(GameState * gs, ReplayEntry entry) {
+static void applyEntry(GameState * gs, ReplayEntry entry) {
     
     if(entry.move == REPLAY_DISCONNECT) {
         gs->players[entry.player].isBlocked = true;
@@ -198,7 +198,7 @@ void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync 
     int cantParams = 0;
     char * token;
 
-    while(token = strtok(NULL, SEPARATORS)) {
+    while((token = strtok(NULL, SEPARATORS)) != NULL) {
 
         // si me paso de parametros, corto el parseo y aviso error
         if(cantParams == 2) {
