@@ -95,6 +95,7 @@ static void waitBetweenFrames(unsigned int ms, const sigset_t * runningMask) {
     pselect(0, NULL, NULL, NULL, &wait, runningMask);
 }
 
+// se recibió alguna señal??
 static bool interrupted(void) {
     return sigtermReceived != 0 || sigusr1Received != 0;
 }
@@ -128,6 +129,7 @@ static void play(const ReplayLog * log, GameState * gs, GameSync * sync, const M
         applyEntry(gs, log->entries[applied++]);
     }
 
+    // aplico las entradas desde "from" hasta "to"
     while(1) {
         notifyView(sync, args);
 
@@ -153,4 +155,95 @@ static void play(const ReplayLog * log, GameState * gs, GameSync * sync, const M
     free(realState);
 
     notifyView(sync, args); // vuelvo al estado real
+}
+
+// parseo cada argumento pasado por consola
+static bool parseNumber(const char * token, size_t * out) {
+    
+    // descarto vacio y numeros negativos
+    if(!isdigit((unsigned char)token[0])) {
+        return false;
+    }
+
+    char * end;
+
+    errno = 0;
+
+    unsigned long value = strtoul(token, &end, 10);
+
+    if(*end != '\0' || errno == ERANGE) {
+        return false;
+    }
+
+    *out = (size_t)value;
+    return true;
+}
+
+// Parsea y ejecuta un comando pasado por stdin
+void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask) {
+    char * command = strtok(line, SEPARATORS);
+
+    if(command == NULL) { // linea vacia
+        return;
+    }
+
+    // PARSEO COMANDOS Y ARGUMENTOS Y VALIDO:
+
+    if(strcmp(command, "replay") != 0) {
+        fprintf(stderr, "Comando desconocido: %s. Uso: replay [desde [hasta]]\n", command);
+        return;
+    }
+
+    char * params[2];
+    int cantParams = 0;
+    char * token;
+
+    while(token = strtok(NULL, SEPARATORS)) {
+
+        // si me paso de parametros, corto el parseo y aviso error
+        if(cantParams == 2) {
+            fprintf(stderr, "Demasiados parametros. Uso: replay [desde [hasta]]\n");
+            return;
+        }
+
+        params[cantParams++] = token;
+    }
+
+    // chequeo que haya vista y replay habilitada
+    if(!args->hasView || log->initialState == NULL) {
+        fprintf(stderr, "El replay no esta disponible (se necesita vista)\n");
+        return;
+    }
+
+    // chequeo que haya jugadas registradas
+    size_t total = log->count;
+    if(total == 0) {
+        fprintf(stderr, "No hay jugadas registradas para reproducir\n");
+        return;
+    }
+
+    size_t from = 0, to = total;
+
+    // chequeo que los parametros sean numeros enteros no negativos
+    if((cantParams >= 1 && !parseNumber(params[0], &from)) || (cantParams == 2 && !parseNumber(params[1], &to))) {
+        fprintf(stderr, "Los parametros deben ser enteros no negativos\n");
+        return;
+    }
+
+    // si alguno de los parametros dados es mayor que la cantidad de jugadas totales guardadas
+    if(from > total || to > total) {
+        fprintf(stderr, "La jugada %zu no existe: solo se hicieron %zu jugadas\n", (from > total) ? from : to, total);
+        return;
+    }
+
+    // si el primer parametro es mayor o igual que el segundo, no tiene sentido
+    if(cantParams == 2 && from >= to) {
+        fprintf(stderr, "El primer parametro debe ser menor que el segundo\n");
+        return;
+    }
+
+
+    // PASADOS LOS CHEQUEOS, REPRODUZCO LA REPLAY
+
+    play(log, gs, sync, args, runningMask, from, to);
 }
