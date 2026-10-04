@@ -102,6 +102,76 @@ static void setPaused(GameState * gs, GameSync * sync, bool paused) {
     writerUnlock(sync);
 }
 
+// Espera comandos por stdin con el pselect y la mascara de ejecucion: el master duerme hasta
+// que llegue una señal o haya una linea para leer.
+//   * afterGameOver = false (pausa): termina con SIGUSR1 o SIGTERM, el stdin cerrado se ignora.
+//   * afterGameOver = true (fin del juego): termina con "over", SIGTERM o si stdin se cierra
+//     (nadie podria escribir "over"). SIGUSR1 no tiene sentido y se descarta
+static void processCommands(GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, ReplayLog * replay, bool afterGameOver) {
+    bool stdinOpen = true;
+    bool over = false;
+
+    while(sigtermReceived == 0 && !over) {
+        if(afterGameOver) {
+            sigusr1Received = 0;
+        }
+        else if(sigusr1Received != 0) {
+            break;
+        }
+
+        fd_set readSet;
+        FD_ZERO(&readSet);
+        if(stdinOpen) {
+            FD_SET(STDIN_FILENO, &readSet);
+        }
+
+        int ready = pselect(stdinOpen ? STDIN_FILENO + 1 : 0, stdinOpen ? &readSet : NULL, NULL, NULL, NULL, runningMask);
+
+        if(ready == -1 && errno != EINTR) { // stdin invalido
+            stdinOpen = false;
+        }
+        else if(ready > 0 && FD_ISSET(STDIN_FILENO, &readSet)) {
+            char line[128];
+            ssize_t readBytes = read(STDIN_FILENO, line, sizeof(line) - 1);
+
+            if(readBytes <= 0) { // EOF: si no se desactiva, el pselect despertaria sin parar
+                stdinOpen = false;
+            }
+            else {
+                line[readBytes] = '\0';
+                over = replayHandleCommand(line, replay, gs, sync, args, runningMask, afterGameOver);
+            }
+        }
+
+        if(afterGameOver && !stdinOpen) {
+            break;
+        }
+    }
+}
+
+// Cuando termina la partida, antes de matar a los procesos y mostrar el resultado, se deja
+// que el usuario vea el replay. Se sigue con el flujo de gameOver al escribir "over".
+static void offerReplayBeforeGameOver(GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, ReplayLog * replay) {
+    // sin vista o sin log no hay nada para reproducir
+    if(!args->hasView || replay->initialState == NULL) {
+        return;
+    }
+
+    // la vista sale de su bucle al dibujar un cuadro con isGameOver, y todavia la necesitamos.
+    // gameOver lo vuelve a poner en true. Se muestra como PAUSADO mientras dura la espera.
+    writerLock(sync);
+    gs->isGameOver = false;
+    gs->isGamePaused = true;
+    writerUnlock(sync);
+    notifyView(sync, args);
+
+    fprintf(stderr, "\nEl juego termino (%zu jugadas). Comandos: replay [desde [hasta]] | over (ver el resultado y cerrar)\n", replay->count);
+
+    processCommands(gs, sync, args, runningMask, replay, true);
+
+    setPaused(gs, sync, false);
+}
+
 // Mientras el juego esta pausado el master no atiende movimientos: duerme en un pselect
 // sin descriptores hasta que llegue la proxima señal. El tiempo pausado no se le descuenta
 // al timeout, por eso al reanudar se corre hacia adelante la marca del ultimo movimiento.
@@ -114,37 +184,7 @@ static void waitWhilePaused(GameState * gs, GameSync * sync, const MasterArgs * 
     // informo que se puede usar replay
     fprintf(stderr, "Juego pausado. Comando disponible: replay [desde [hasta]]\n");
 
-    // Igual que antes, el master duerme en el pselect con la mascara de ejecucion, pero ahora
-    // tambien despierta si hay un comando en stdin.
-    bool stdinOpen = true;
-    while(sigusr1Received == 0 && sigtermReceived == 0) {
-        
-        fd_set readSet;
-        FD_ZERO(&readSet);
-        if(stdinOpen) {
-            FD_SET(STDIN_FILENO, &readSet);
-        }
-
-        int ready = pselect(stdinOpen ? STDIN_FILENO + 1 : 0, stdinOpen ? &readSet : NULL, NULL, NULL, NULL, runningMask);
-
-        if(ready == -1 && errno != EINTR) { // stdin invalido: seguimos solo con señales
-            stdinOpen = false;
-            continue;
-        }
-
-        if(ready > 0 && FD_ISSET(STDIN_FILENO, &readSet)) {
-            char line[128];
-            ssize_t readBytes = read(STDIN_FILENO, line, sizeof(line) - 1);
-
-            if(readBytes <= 0) { // EOF: si no se desactiva, el pselect despertaria sin parar
-                stdinOpen = false;
-            }
-            else {
-                line[readBytes] = '\0';
-                replayHandleCommand(line, replay, gs, sync, args, runningMask);
-            }
-        }
-    }
+    processCommands(gs, sync, args, runningMask, replay, false);
     sigusr1Received = 0;
 
     setPaused(gs, sync, false);
@@ -311,6 +351,11 @@ void runGame(GameState * gs, GameSync * sync, const MasterArgs * args, int playe
     }
 
     // libero recursos del replay 
+    // si el juego termino solo (no por SIGTERM) se ofrece el replay antes del gameOver
+    if(!sigtermReceived) {
+        offerReplayBeforeGameOver(gs, sync, args, &runningMask, &replay);
+    }
+
     replayDestroy(&replay);
 
     // desbloqueo señales de nuevo

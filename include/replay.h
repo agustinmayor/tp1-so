@@ -36,6 +36,8 @@ void replayDestroy(ReplayLog * log);
 
 // Parsea y ejecuta un comando pasado por stdin
 // valida numeros de jugada y reproduce la replay pedida
-void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask);
+// allowOver habilita el comando "over" (solo despues de terminado el juego)
+// devuelve true si el comando fue "over"
+bool replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, bool allowOver);
 
 #endif

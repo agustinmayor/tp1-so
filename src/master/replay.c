@@ -153,9 +153,6 @@ static void play(const ReplayLog * log, GameState * gs, GameSync * sync, const M
     writerUnlock(sync);
 
     free(realState);
-
-    // termino una replay, se puede poner otra o reanudar el juego
-    fprintf(stderr, "Replay finalizada. Juego pausado. Comando disponible: replay [desde [hasta]]\n");
 }
 
 // parseo cada argumento pasado por consola
@@ -181,18 +178,27 @@ static bool parseNumber(const char * token, size_t * out) {
 }
 
 // Parsea y ejecuta un comando pasado por stdin
-void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask) {
+bool replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync * sync, const MasterArgs * args, const sigset_t * runningMask, bool allowOver) {
     char * command = strtok(line, SEPARATORS);
 
     if(command == NULL) { // linea vacia
-        return;
+        return false;
+    }
+
+    // "over" cierra la fase de despues del juego y sigue con el flujo de gameOver (matar procesos y mostrar resultado final)
+    if(allowOver && strcmp(command, "over") == 0) {
+        if(strtok(NULL, SEPARATORS) != NULL) {
+            fprintf(stderr, "El comando over no recibe parametros\n");
+            return false;
+        }
+        return true;
     }
 
     // PARSEO COMANDOS Y ARGUMENTOS Y VALIDO:
 
     if(strcmp(command, "replay") != 0) {
-        fprintf(stderr, "Comando desconocido: %s. Uso: replay [desde [hasta]]\n", command);
-        return;
+        fprintf(stderr, "Comando desconocido: %s. Uso: replay [desde [hasta]]%s\n", command, allowOver ? " | over" : "");
+        return false;
     }
 
     char * params[2];
@@ -204,7 +210,7 @@ void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync 
         // si me paso de parametros, corto el parseo y aviso error
         if(cantParams == 2) {
             fprintf(stderr, "Demasiados parametros. Uso: replay [desde [hasta]]\n");
-            return;
+            return false;
         }
 
         params[cantParams++] = token;
@@ -213,14 +219,14 @@ void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync 
     // chequeo que haya vista y replay habilitada
     if(!args->hasView || log->initialState == NULL) {
         fprintf(stderr, "El replay no esta disponible (se necesita vista)\n");
-        return;
+        return false;
     }
 
     // chequeo que haya jugadas registradas
     size_t total = log->count;
     if(total == 0) {
         fprintf(stderr, "No hay jugadas registradas para reproducir\n");
-        return;
+        return false;
     }
 
     size_t from = 0, to = total;
@@ -228,23 +234,32 @@ void replayHandleCommand(char * line, ReplayLog * log, GameState * gs, GameSync 
     // chequeo que los parametros sean numeros enteros no negativos
     if((cantParams >= 1 && !parseNumber(params[0], &from)) || (cantParams == 2 && !parseNumber(params[1], &to))) {
         fprintf(stderr, "Los parametros deben ser enteros no negativos\n");
-        return;
+        return false;
     }
 
     // si alguno de los parametros dados es mayor que la cantidad de jugadas totales guardadas
     if(from > total || to > total) {
         fprintf(stderr, "La jugada %zu no existe: solo se hicieron %zu jugadas\n", (from > total) ? from : to, total);
-        return;
+        return false;
     }
 
     // si el primer parametro es mayor o igual que el segundo, no tiene sentido
     if(cantParams == 2 && from >= to) {
         fprintf(stderr, "El primer parametro debe ser menor que el segundo\n");
-        return;
+        return false;
     }
 
 
     // PASADOS LOS CHEQUEOS, REPRODUZCO LA REPLAY
 
     play(log, gs, sync, args, runningMask, from, to);
+
+    // termino una replay, se puede pedir otra y despues reanudar el juego o terminar con "over"
+    if(allowOver) { // caso en el que se pidió la replay despues de que haya gameOver
+        fprintf(stderr, "Replay finalizada. Comandos: replay [desde [hasta]] | over\n");
+    }
+    else { // caso en el que se puede seguir jugando, osea se pausó en el medio del juego
+        fprintf(stderr, "Replay finalizada. Juego pausado. Comando disponible: replay [desde [hasta]]\n");
+    }
+    return false;
 }
